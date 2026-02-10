@@ -16,16 +16,16 @@ from macaw.cli.serve import DEFAULT_MODELS_DIR
     "--models-dir",
     default=DEFAULT_MODELS_DIR,
     show_default=True,
-    help="Diretorio onde os modelos serao instalados.",
+    help="Directory where the models will be installed.",
 )
 @click.option(
     "--force",
     is_flag=True,
     default=False,
-    help="Sobrescreve modelo existente.",
+    help="Overwrite an existing model.",
 )
 def pull(model_name: str, models_dir: str, force: bool) -> None:
-    """Baixa um modelo do HuggingFace Hub."""
+    """Downloads a model from the HuggingFace Hub."""
     from pathlib import Path
 
     from macaw.registry.catalog import ModelCatalog
@@ -36,15 +36,15 @@ def pull(model_name: str, models_dir: str, force: bool) -> None:
     try:
         catalog.load()
     except (FileNotFoundError, ValueError) as e:
-        click.echo(f"Erro ao carregar o catalogo: {e}", err=True)
+        click.echo(f"Failed to load catalog: {e}", err=True)
         sys.exit(1)
 
     # Check if model exists in the catalog
     entry = catalog.get(model_name)
     if entry is None:
-        click.echo(f"Erro: modelo '{model_name}' nao encontrado no catalogo.", err=True)
+        click.echo(f"Error: model '{model_name}' not found in the catalog.", err=True)
         click.echo("", err=True)
-        click.echo("Modelos disponiveis:", err=True)
+        click.echo("Available models:", err=True)
         for m in catalog.list_models():
             click.echo(f"  {m.name:<30} {m.description}", err=True)
         sys.exit(1)
@@ -53,20 +53,20 @@ def pull(model_name: str, models_dir: str, force: bool) -> None:
     downloader = ModelDownloader(Path(models_dir).expanduser())
 
     if downloader.is_installed(model_name) and not force:
-        click.echo(f"Modelo '{model_name}' ja esta instalado.")
-        click.echo("Use --force para reinstalar.")
+        click.echo(f"Model '{model_name}' is already installed.")
+        click.echo("Use --force to reinstall.")
         return
 
-    click.echo(f"Baixando {model_name} de {entry.repo}...")
+    click.echo(f"Downloading {model_name} from {entry.repo}...")
 
     try:
         model_dir = downloader.download(entry, force=force)
     except RuntimeError as e:
-        click.echo(f"Erro: {e}", err=True)
+        click.echo(f"Error: {e}", err=True)
         sys.exit(1)
     except Exception as e:
-        click.echo(f"Erro ao baixar o modelo: {e}", err=True)
+        click.echo(f"Failed to download the model: {e}", err=True)
         sys.exit(1)
 
-    click.echo(f"Modelo instalado em {model_dir}")
-    click.echo("Execute 'macaw serve' para iniciar o servidor.")
+    click.echo(f"Model installed in {model_dir}")
+    click.echo("Run 'macaw serve' to start the server.")
