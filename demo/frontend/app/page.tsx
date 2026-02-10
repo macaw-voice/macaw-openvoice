@@ -131,41 +131,47 @@ function SendIcon({ className }: { className?: string }) {
 
 function HeroSection({ modelCount }: { modelCount: number }) {
   return (
-    <section className="relative overflow-hidden rounded-2xl border bg-card px-8 py-12">
-      {/* Background decoration */}
-      <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
+    <section className="relative overflow-hidden rounded-2xl border border-border/50 bg-card/50 px-8 py-14">
+      {/* Background glow */}
+      <div className="hero-glow pointer-events-none absolute inset-0" />
+      <div className="pointer-events-none absolute -right-32 -top-32 h-80 w-80 rounded-full bg-primary/5 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-primary/5 blur-3xl" />
 
       <div className="relative z-10 flex flex-col items-center text-center">
-        <div className="mb-4 flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <VolumeIcon className="h-5 w-5" />
-          </div>
-          <span className="text-sm font-medium tracking-wider text-muted-foreground uppercase">
+        {/* Logo + brand */}
+        <div className="mb-6 flex flex-col items-center gap-3">
+          <img
+            src="/img/logo-256.png"
+            alt="Macaw OpenVoice"
+            className="h-16 w-16 drop-shadow-lg"
+            width={64}
+            height={64}
+          />
+          <span className="text-xs font-semibold tracking-[0.25em] text-primary uppercase">
             Macaw OpenVoice
           </span>
         </div>
 
-        <h1 className="gradient-text text-4xl font-bold tracking-tight sm:text-5xl">
+        <h1 className="gradient-text text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
           Voice Runtime
         </h1>
 
-        <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
+        <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
           STT + TTS in a single server. OpenAI-compatible API, WebSocket streaming,
           smart VAD, session management, and failure recovery.
         </p>
 
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Badge variant="outline" className="px-3 py-1.5 text-sm">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+          <Badge variant="outline" className="border-primary/20 bg-primary/5 px-3 py-1.5 text-sm text-primary">
             {modelCount} model{modelCount !== 1 ? 's' : ''} installed
           </Badge>
-          <Badge variant="outline" className="px-3 py-1.5 text-sm">
+          <Badge variant="outline" className="border-border/50 px-3 py-1.5 text-sm">
             OpenAI-compatible API
           </Badge>
-          <Badge variant="outline" className="px-3 py-1.5 text-sm">
+          <Badge variant="outline" className="border-border/50 px-3 py-1.5 text-sm">
             Full-Duplex STT + TTS
           </Badge>
-          <Badge variant="outline" className="px-3 py-1.5 text-sm">
+          <Badge variant="outline" className="border-border/50 px-3 py-1.5 text-sm">
             gRPC Worker Isolation
           </Badge>
         </div>
@@ -249,7 +255,7 @@ function DashboardTab({ models, queue, jobs, defaultModel }: DashboardTabProps) 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-xs font-bold text-primary">M</span>
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-xs font-bold text-primary">M</span>
               Installed Models
             </CardTitle>
             <CardDescription>
@@ -304,7 +310,7 @@ function DashboardTab({ models, queue, jobs, defaultModel }: DashboardTabProps) 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-xs font-bold text-primary">Q</span>
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-xs font-bold text-primary">Q</span>
               Scheduler Queue
             </CardTitle>
             <CardDescription>Queue depth and real-time priorities.</CardDescription>
@@ -386,7 +392,7 @@ function DashboardTab({ models, queue, jobs, defaultModel }: DashboardTabProps) 
             <p className="text-sm text-destructive">{submitState.error}</p>
           )}
           {submitState.success && (
-            <p className="text-sm text-emerald-600">{submitState.success}</p>
+            <p className="text-sm text-emerald-500">{submitState.success}</p>
           )}
           <Button onClick={onSubmit} disabled={submitState.isSubmitting || !selectedFile}>
             {submitState.isSubmitting ? 'Sending...' : 'Send transcription'}
@@ -1209,6 +1215,25 @@ export default function Page() {
 
   return (
     <main className="min-h-screen bg-background">
+      {/* Top bar */}
+      <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-lg">
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-6">
+          <img
+            src="/img/logo-192.png"
+            alt="Macaw"
+            className="h-7 w-7"
+            width={28}
+            height={28}
+          />
+          <span className="text-sm font-semibold tracking-wide text-foreground">
+            Macaw OpenVoice
+          </span>
+          <span className="ml-auto text-xs font-medium text-primary/60">
+            Voice Runtime Demo
+          </span>
+        </div>
+      </nav>
+
       <section className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10">
         <HeroSection modelCount={models?.length ?? 0} />
 
@@ -1246,14 +1271,29 @@ export default function Page() {
         </Tabs>
 
         {/* Footer */}
-        <footer className="border-t pt-6 text-center text-xs text-muted-foreground">
-          <p>
-            Macaw OpenVoice — Voice runtime (STT + TTS).
-            All 3 PRD phases delivered (M1-M9). 1600+ tests.
-          </p>
-          <p className="mt-1">
-            OpenAI-compatible API · gRPC worker isolation · Full-duplex WebSocket · Mute-on-speak
-          </p>
+        <footer className="border-t border-border/50 py-8">
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+            <div className="flex items-center gap-2">
+              <img
+                src="/img/logo-192.png"
+                alt="Macaw"
+                className="h-5 w-5 opacity-60"
+                width={20}
+                height={20}
+              />
+              <span className="text-xs font-medium text-muted-foreground">
+                Macaw OpenVoice
+              </span>
+            </div>
+            <div className="text-center text-xs text-muted-foreground sm:text-right">
+              <p>
+                Voice runtime (STT + TTS) — All PRD phases delivered (M1-M9). 1600+ tests.
+              </p>
+              <p className="mt-1 text-muted-foreground/60">
+                OpenAI-compatible API · gRPC worker isolation · Full-duplex WebSocket · Mute-on-speak
+              </p>
+            </div>
+          </div>
         </footer>
       </section>
     </main>

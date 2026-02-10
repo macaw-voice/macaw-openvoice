@@ -41,6 +41,11 @@ class EngineConfig(BaseModel, extra="allow"):
     Allows extra fields because each engine has its own parameters.
     """
 
+    # Allow fields starting with "model_" within engine_config (eg. model_size)
+    # without Pydantic emitting protected namespace warnings when the
+    # application runs on environments with different pydantic defaults.
+    model_config = {"protected_namespaces": ()}
+
     model_size: str | None = None
     compute_type: str = "float16"
     device: str = "auto"
@@ -54,6 +59,10 @@ class ModelManifest(BaseModel):
     Describes capabilities, resources, and configuration for a model
     installed in the local registry.
     """
+
+    # Relax protected namespace rules on the top-level manifest model as
+    # some fields intentionally begin with "model_" (eg. model_type).
+    model_config = {"protected_namespaces": ()}
 
     name: str
     version: str

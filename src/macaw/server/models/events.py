@@ -20,7 +20,11 @@ from macaw._types import VADSensitivity
 class PreprocessingOverrides(BaseModel):
     """Overrides de preprocessing configuráveis por sessão."""
 
-    model_config = ConfigDict(frozen=True)
+    # Allow fields beginning with "model_" (eg. `model_tts`) without
+    # triggering Pydantic's protected namespace warning during model
+    # construction. These models are frozen to be safely hashable and
+    # lightweight for message passing.
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     denoise: bool = False
     denoise_engine: str = "rnnoise"
@@ -29,7 +33,7 @@ class PreprocessingOverrides(BaseModel):
 class SessionConfig(BaseModel):
     """Configuracao da sessao, retornada em session.created."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     vad_sensitivity: VADSensitivity = VADSensitivity.NORMAL
     silence_timeout_ms: int = 300
@@ -46,7 +50,7 @@ class SessionConfig(BaseModel):
 class WordEvent(BaseModel):
     """Palavra com timestamps para transcript.final."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     word: str
     start: float
@@ -61,7 +65,7 @@ class WordEvent(BaseModel):
 class SessionCreatedEvent(BaseModel):
     """Emitido quando a sessao WebSocket e criada."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     type: Literal["session.created"] = "session.created"
     session_id: str
@@ -72,7 +76,7 @@ class SessionCreatedEvent(BaseModel):
 class VADSpeechStartEvent(BaseModel):
     """Emitido quando o VAD detecta inicio de fala."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     type: Literal["vad.speech_start"] = "vad.speech_start"
     timestamp_ms: int
@@ -81,7 +85,7 @@ class VADSpeechStartEvent(BaseModel):
 class VADSpeechEndEvent(BaseModel):
     """Emitido quando o VAD detecta fim de fala."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     type: Literal["vad.speech_end"] = "vad.speech_end"
     timestamp_ms: int
@@ -90,7 +94,7 @@ class VADSpeechEndEvent(BaseModel):
 class TranscriptPartialEvent(BaseModel):
     """Hipotese intermediaria de transcricao (pode mudar)."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     type: Literal["transcript.partial"] = "transcript.partial"
     text: str
@@ -101,7 +105,7 @@ class TranscriptPartialEvent(BaseModel):
 class TranscriptFinalEvent(BaseModel):
     """Segmento confirmado de transcricao (nao muda)."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     type: Literal["transcript.final"] = "transcript.final"
     text: str
@@ -116,7 +120,7 @@ class TranscriptFinalEvent(BaseModel):
 class SessionHoldEvent(BaseModel):
     """Emitido quando a sessao transita para estado HOLD."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     type: Literal["session.hold"] = "session.hold"
     timestamp_ms: int
@@ -126,7 +130,7 @@ class SessionHoldEvent(BaseModel):
 class SessionRateLimitEvent(BaseModel):
     """Backpressure: cliente enviando audio mais rapido que real-time."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     type: Literal["session.rate_limit"] = "session.rate_limit"
     delay_ms: int
@@ -136,7 +140,7 @@ class SessionRateLimitEvent(BaseModel):
 class SessionFramesDroppedEvent(BaseModel):
     """Frames descartados por excesso de backlog (>10s)."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     type: Literal["session.frames_dropped"] = "session.frames_dropped"
     dropped_ms: int
@@ -146,7 +150,7 @@ class SessionFramesDroppedEvent(BaseModel):
 class StreamingErrorEvent(BaseModel):
     """Erro durante streaming (com flag de recuperabilidade)."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     type: Literal["error"] = "error"
     code: str
@@ -158,7 +162,7 @@ class StreamingErrorEvent(BaseModel):
 class SessionClosedEvent(BaseModel):
     """Emitido quando a sessao e encerrada."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     type: Literal["session.closed"] = "session.closed"
     reason: str
@@ -169,7 +173,7 @@ class SessionClosedEvent(BaseModel):
 class TTSSpeakingStartEvent(BaseModel):
     """Emitido quando o TTS comeca a produzir audio."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     type: Literal["tts.speaking_start"] = "tts.speaking_start"
     request_id: str
@@ -179,7 +183,7 @@ class TTSSpeakingStartEvent(BaseModel):
 class TTSSpeakingEndEvent(BaseModel):
     """Emitido quando o TTS termina de produzir audio."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     type: Literal["tts.speaking_end"] = "tts.speaking_end"
     request_id: str
@@ -196,7 +200,7 @@ class TTSSpeakingEndEvent(BaseModel):
 class SessionConfigureCommand(BaseModel):
     """Configura parametros da sessao de streaming."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     type: Literal["session.configure"] = "session.configure"
     vad_sensitivity: VADSensitivity | None = None
@@ -216,7 +220,7 @@ class SessionConfigureCommand(BaseModel):
 class SessionCancelCommand(BaseModel):
     """Cancela a sessao de streaming."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     type: Literal["session.cancel"] = "session.cancel"
 
@@ -224,7 +228,7 @@ class SessionCancelCommand(BaseModel):
 class InputAudioBufferCommitCommand(BaseModel):
     """Forca commit manual do segmento de audio atual."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     type: Literal["input_audio_buffer.commit"] = "input_audio_buffer.commit"
 
@@ -232,7 +236,7 @@ class InputAudioBufferCommitCommand(BaseModel):
 class SessionCloseCommand(BaseModel):
     """Encerra a sessao de streaming gracefully."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, protected_namespaces=())
 
     type: Literal["session.close"] = "session.close"
 
