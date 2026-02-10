@@ -1,0 +1,28 @@
+name: wenet-ctc
+version: 1.0.0
+engine: wenet
+type: stt
+description: "WeNet CTC - streaming-native STT with keyword boosting"
+
+capabilities:
+  streaming: true
+  architecture: ctc
+  languages: ["zh", "en"]
+  word_timestamps: true
+  translation: false
+  partial_transcripts: true
+  hot_words: true
+  batch_inference: true
+  language_detection: false
+  initial_prompt: false
+
+resources:
+  memory_mb: 1024
+  gpu_required: false
+  gpu_recommended: true
+  load_time_seconds: 5
+
+engine_config:
+  device: "auto"
+  vad_filter: false
+  language: "chinese"

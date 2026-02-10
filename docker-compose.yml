@@ -1,0 +1,13 @@
+services:
+  Macaw:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - Macaw-models:/root/.Macaw/models
+    environment:
+      - Macaw_LOG_FORMAT=json
+    restart: unless-stopped
+
+volumes:
+  Macaw-models:

@@ -1,0 +1,7 @@
+name: minimal-model
+version: 0.1.0
+engine: test-engine
+type: stt
+
+resources:
+  memory_mb: 512

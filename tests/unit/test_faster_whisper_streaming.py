@@ -1,0 +1,289 @@
+"""Testes para FasterWhisperBackend.transcribe_stream().
+
+Valida acumulacao de chunks, threshold de inference, flush no fim
+do stream e tratamento de hot words. Usa mocks para WhisperModel.
+"""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
+
+import numpy as np
+import pytest
+
+from Macaw.exceptions import ModelLoadError
+from Macaw.workers.stt.faster_whisper import FasterWhisperBackend
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from Macaw._types import TranscriptSegment
+
+
+def _make_fw_segment(
+    text: str = "hello world",
+    start: float = 0.0,
+    end: float = 2.0,
+    avg_logprob: float = -0.25,
+    no_speech_prob: float = 0.01,
+    compression_ratio: float = 1.1,
+) -> SimpleNamespace:
+    """Cria segmento fake no formato faster-whisper."""
+    return SimpleNamespace(
+        text=f" {text}",
+        start=start,
+        end=end,
+        avg_logprob=avg_logprob,
+        no_speech_prob=no_speech_prob,
+        compression_ratio=compression_ratio,
+        words=None,
+    )
+
+
+def _make_fw_info(language: str = "en", duration: float = 2.0) -> SimpleNamespace:
+    """Cria TranscriptionInfo fake."""
+    return SimpleNamespace(language=language, duration=duration)
+
+
+def _make_pcm16_silence(duration_seconds: float, sample_rate: int = 16000) -> bytes:
+    """Gera silencio PCM 16-bit."""
+    num_samples = int(duration_seconds * sample_rate)
+    return np.zeros(num_samples, dtype=np.int16).tobytes()
+
+
+async def _make_chunk_iterator(chunks: list[bytes]) -> AsyncIterator[bytes]:
+    """Cria AsyncIterator de chunks para testes."""
+    for chunk in chunks:
+        yield chunk
+
+
+def _make_loaded_backend(
+    text: str = "hello world",
+    language: str = "en",
+    duration: float = 2.0,
+    avg_logprob: float = -0.25,
+) -> FasterWhisperBackend:
+    """Cria backend com modelo mock carregado."""
+    backend = FasterWhisperBackend()
+    mock_model = MagicMock()
+    segment = _make_fw_segment(text=text, end=duration, avg_logprob=avg_logprob)
+    info = _make_fw_info(language=language, duration=duration)
+    mock_model.transcribe.return_value = (iter([segment]), info)
+    backend._model = mock_model  # type: ignore[assignment]
+    return backend
+
+
+class TestTranscribeStreamAccumulation:
+    """Testa acumulacao de chunks e threshold de inference."""
+
+    async def test_accumulates_and_transcribes_on_threshold(self) -> None:
+        """Envia 5s de audio (threshold), verifica que yield TranscriptSegment."""
+        backend = _make_loaded_backend()
+
+        # 5s de audio em chunks de 1s (atinge threshold de 5s)
+        chunks = [_make_pcm16_silence(1.0) for _ in range(5)]
+        # Chunk vazio para sinalizar fim
+        chunks.append(b"")
+
+        segments: list[TranscriptSegment] = []
+        async for seg in backend.transcribe_stream(_make_chunk_iterator(chunks)):
+            segments.append(seg)
+
+        assert len(segments) == 1
+        assert segments[0].text == "hello world"
+        assert segments[0].is_final is True
+        assert segments[0].segment_id == 0
+        assert segments[0].language == "en"
+
+    async def test_flushes_remaining_buffer_on_empty_chunk(self) -> None:
+        """Envia audio curto + chunk vazio, verifica flush do buffer."""
+        backend = _make_loaded_backend()
+
+        # 2s de audio (abaixo do threshold de 5s) + fim
+        chunks = [_make_pcm16_silence(2.0), b""]
+
+        segments: list[TranscriptSegment] = []
+        async for seg in backend.transcribe_stream(_make_chunk_iterator(chunks)):
+            segments.append(seg)
+
+        assert len(segments) == 1
+        assert segments[0].text == "hello world"
+        assert segments[0].is_final is True
+        assert segments[0].segment_id == 0
+
+    async def test_short_audio_transcribed_on_stream_end(self) -> None:
+        """Audio de 0.5s (curto) transcrito normalmente no fim do stream."""
+        backend = _make_loaded_backend()
+
+        # 500ms de audio + fim
+        chunks = [_make_pcm16_silence(0.5), b""]
+
+        segments: list[TranscriptSegment] = []
+        async for seg in backend.transcribe_stream(_make_chunk_iterator(chunks)):
+            segments.append(seg)
+
+        assert len(segments) == 1
+        assert segments[0].text == "hello world"
+
+
+class TestTranscribeStreamMultipleSegments:
+    """Testa multiplos segmentos e incremento de segment_id."""
+
+    async def test_multiple_segments_increment_id(self) -> None:
+        """2x threshold gera 2 segmentos com ids 0 e 1."""
+        backend = FasterWhisperBackend()
+        mock_model = MagicMock()
+
+        call_count = 0
+
+        def transcribe_side_effect(*args: object, **kwargs: object) -> tuple[object, object]:
+            nonlocal call_count
+            text = f"segment {call_count}"
+            seg = _make_fw_segment(text=text)
+            info = _make_fw_info()
+            call_count += 1
+            return iter([seg]), info
+
+        mock_model.transcribe.side_effect = transcribe_side_effect
+        backend._model = mock_model  # type: ignore[assignment]
+
+        # 10s de audio em chunks de 1s (2x threshold de 5s) + fim
+        chunks = [_make_pcm16_silence(1.0) for _ in range(10)]
+        chunks.append(b"")
+
+        segments: list[TranscriptSegment] = []
+        async for seg in backend.transcribe_stream(_make_chunk_iterator(chunks)):
+            segments.append(seg)
+
+        assert len(segments) == 2
+        assert segments[0].segment_id == 0
+        assert segments[0].text == "segment 0"
+        assert segments[1].segment_id == 1
+        assert segments[1].text == "segment 1"
+
+    async def test_threshold_plus_remainder(self) -> None:
+        """7s de audio: 1 segmento no threshold (5s) + 1 flush (2s)."""
+        backend = FasterWhisperBackend()
+        mock_model = MagicMock()
+
+        call_count = 0
+
+        def transcribe_side_effect(*args: object, **kwargs: object) -> tuple[object, object]:
+            nonlocal call_count
+            seg = _make_fw_segment(text=f"part {call_count}")
+            info = _make_fw_info()
+            call_count += 1
+            return iter([seg]), info
+
+        mock_model.transcribe.side_effect = transcribe_side_effect
+        backend._model = mock_model  # type: ignore[assignment]
+
+        # 7s de audio em chunks de 1s + fim
+        chunks = [_make_pcm16_silence(1.0) for _ in range(7)]
+        chunks.append(b"")
+
+        segments: list[TranscriptSegment] = []
+        async for seg in backend.transcribe_stream(_make_chunk_iterator(chunks)):
+            segments.append(seg)
+
+        assert len(segments) == 2
+        assert segments[0].segment_id == 0
+        assert segments[1].segment_id == 1
+
+
+class TestTranscribeStreamPrompt:
+    """Testa hot words e initial_prompt no streaming."""
+
+    async def test_hot_words_in_prompt(self) -> None:
+        """Hot words sao injetadas no initial_prompt da transcricao."""
+        backend = _make_loaded_backend()
+
+        chunks = [_make_pcm16_silence(2.0), b""]
+
+        segments: list[TranscriptSegment] = []
+        async for seg in backend.transcribe_stream(
+            _make_chunk_iterator(chunks),
+            hot_words=["PIX", "TED"],
+            initial_prompt="Contexto bancario",
+        ):
+            segments.append(seg)
+
+        assert len(segments) == 1
+        call_kwargs = backend._model.transcribe.call_args  # type: ignore[union-attr]
+        prompt = call_kwargs.kwargs.get("initial_prompt") or call_kwargs[1].get("initial_prompt")
+        assert "PIX" in prompt
+        assert "TED" in prompt
+        assert "Contexto bancario" in prompt
+
+    async def test_auto_language_passed_as_none(self) -> None:
+        """Language 'auto' e 'mixed' sao convertidos para None."""
+        backend = _make_loaded_backend()
+
+        chunks = [_make_pcm16_silence(2.0), b""]
+
+        async for _ in backend.transcribe_stream(
+            _make_chunk_iterator(chunks),
+            language="auto",
+        ):
+            pass
+
+        call_kwargs = backend._model.transcribe.call_args  # type: ignore[union-attr]
+        assert call_kwargs.kwargs.get("language") is None
+
+
+class TestTranscribeStreamErrors:
+    """Testa cenarios de erro no streaming."""
+
+    async def test_model_not_loaded_raises_error(self) -> None:
+        """Sem modelo carregado levanta ModelLoadError."""
+        backend = FasterWhisperBackend()
+
+        with pytest.raises(ModelLoadError, match="nao carregado"):
+            async for _ in backend.transcribe_stream(
+                _make_chunk_iterator([_make_pcm16_silence(1.0)]),
+            ):
+                pass
+
+    async def test_empty_stream_yields_nothing(self) -> None:
+        """Stream vazio (so chunk vazio) nao gera segmentos."""
+        backend = _make_loaded_backend()
+
+        segments: list[TranscriptSegment] = []
+        async for seg in backend.transcribe_stream(_make_chunk_iterator([b""])):
+            segments.append(seg)
+
+        assert len(segments) == 0
+
+
+class TestTranscribeStreamTimestamps:
+    """Testa timestamps e confidence nos segmentos."""
+
+    async def test_segment_has_timestamps(self) -> None:
+        """Segmento retornado tem start_ms e end_ms calculados."""
+        backend = _make_loaded_backend(duration=3.5)
+
+        chunks = [_make_pcm16_silence(2.0), b""]
+
+        segments: list[TranscriptSegment] = []
+        async for seg in backend.transcribe_stream(_make_chunk_iterator(chunks)):
+            segments.append(seg)
+
+        assert len(segments) == 1
+        assert segments[0].start_ms == 0
+        assert segments[0].end_ms == 3500
+
+    async def test_segment_has_confidence(self) -> None:
+        """Segmento retornado tem confidence (avg_logprob)."""
+        backend = _make_loaded_backend(avg_logprob=-0.3)
+
+        chunks = [_make_pcm16_silence(2.0), b""]
+
+        segments: list[TranscriptSegment] = []
+        async for seg in backend.transcribe_stream(_make_chunk_iterator(chunks)):
+            segments.append(seg)
+
+        assert len(segments) == 1
+        assert segments[0].confidence is not None
+        assert abs(segments[0].confidence - (-0.3)) < 0.01

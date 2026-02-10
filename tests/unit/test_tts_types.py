@@ -1,0 +1,155 @@
+"""Tests for TTS types, TTSBackend interface, and TTS exceptions.
+
+M9-01: Validates that TTS types are frozen, interface is not instantiable,
+and exception hierarchy is correct.
+"""
+
+from __future__ import annotations
+
+import dataclasses
+from typing import TYPE_CHECKING
+
+import pytest
+
+from Macaw._types import TTSSpeechResult, VoiceInfo
+from Macaw.exceptions import MacawError, TTSError, TTSSynthesisError
+from Macaw.workers.tts.interface import TTSBackend
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+
+# --- VoiceInfo ---
+
+
+class TestVoiceInfo:
+    def test_creation(self) -> None:
+        voice = VoiceInfo(voice_id="v1", name="Default", language="en")
+        assert voice.voice_id == "v1"
+        assert voice.name == "Default"
+        assert voice.language == "en"
+        assert voice.gender is None
+
+    def test_creation_with_gender(self) -> None:
+        voice = VoiceInfo(voice_id="v1", name="Sara", language="pt", gender="female")
+        assert voice.gender == "female"
+
+    def test_frozen(self) -> None:
+        voice = VoiceInfo(voice_id="v1", name="Default", language="en")
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            voice.name = "other"  # type: ignore[misc]
+
+    def test_slots(self) -> None:
+        voice = VoiceInfo(voice_id="v1", name="Default", language="en")
+        assert not hasattr(voice, "__dict__")
+
+    def test_replace(self) -> None:
+        voice = VoiceInfo(voice_id="v1", name="Default", language="en")
+        updated = dataclasses.replace(voice, language="pt")
+        assert updated.language == "pt"
+        assert voice.language == "en"
+
+
+# --- TTSSpeechResult ---
+
+
+class TestTTSSpeechResult:
+    def test_creation(self) -> None:
+        result = TTSSpeechResult(
+            audio_data=b"\x00\x01",
+            sample_rate=24000,
+            duration=1.5,
+            voice="default",
+        )
+        assert result.audio_data == b"\x00\x01"
+        assert result.sample_rate == 24000
+        assert result.duration == 1.5
+        assert result.voice == "default"
+
+    def test_frozen(self) -> None:
+        result = TTSSpeechResult(
+            audio_data=b"\x00", sample_rate=24000, duration=1.0, voice="default"
+        )
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            result.duration = 2.0  # type: ignore[misc]
+
+    def test_slots(self) -> None:
+        result = TTSSpeechResult(
+            audio_data=b"\x00", sample_rate=24000, duration=1.0, voice="default"
+        )
+        assert not hasattr(result, "__dict__")
+
+
+# --- TTSError / TTSSynthesisError ---
+
+
+class TestTTSExceptions:
+    def test_tts_error_is_Macaw_error(self) -> None:
+        assert issubclass(TTSError, MacawError)
+
+    def test_tts_synthesis_error_is_tts_error(self) -> None:
+        assert issubclass(TTSSynthesisError, TTSError)
+
+    def test_tts_synthesis_error_attributes(self) -> None:
+        err = TTSSynthesisError(model_name="kokoro-v1", reason="out of memory")
+        assert err.model_name == "kokoro-v1"
+        assert err.reason == "out of memory"
+        assert "kokoro-v1" in str(err)
+        assert "out of memory" in str(err)
+
+    def test_tts_error_catchable_as_Macaw_error(self) -> None:
+        with pytest.raises(MacawError):
+            raise TTSSynthesisError("model", "reason")
+
+
+# --- TTSBackend ABC ---
+
+
+class TestTTSBackendABC:
+    def test_cannot_instantiate_directly(self) -> None:
+        with pytest.raises(TypeError, match="abstract"):
+            TTSBackend()  # type: ignore[abstract]
+
+    def test_concrete_subclass_can_be_created(self) -> None:
+        """A complete concrete implementation can be instantiated."""
+
+        class _ConcreteTTS(TTSBackend):
+            async def load(self, model_path: str, config: dict[str, object]) -> None: ...
+
+            async def synthesize(
+                self,
+                text: str,
+                voice: str = "default",
+                *,
+                sample_rate: int = 24000,
+                speed: float = 1.0,
+            ) -> AsyncIterator[bytes]:
+                yield b""  # pragma: no cover
+
+            async def voices(self) -> list[VoiceInfo]:
+                return []
+
+            async def unload(self) -> None: ...
+
+            async def health(self) -> dict[str, str]:
+                return {"status": "ok"}
+
+        instance = _ConcreteTTS()
+        assert instance is not None
+
+    def test_partial_implementation_raises(self) -> None:
+        """Missing a single method should prevent instantiation."""
+
+        class _IncompleteTTS(TTSBackend):
+            async def load(self, model_path: str, config: dict[str, object]) -> None: ...
+
+            # Missing: synthesize, voices, unload, health
+
+        with pytest.raises(TypeError, match="abstract"):
+            _IncompleteTTS()  # type: ignore[abstract]
+
+    def test_has_five_abstract_methods(self) -> None:
+        abstract_methods = TTSBackend.__abstractmethods__
+        assert len(abstract_methods) == 5
+        expected = {"load", "synthesize", "voices", "unload", "health"}
+        assert abstract_methods == expected

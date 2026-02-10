@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: pip install -e ".[dev,grpc]"
+
+      - name: Verify proto stubs are up-to-date
+        run: |
+          bash scripts/generate_proto.sh
+          git diff --exit-code src/Macaw/proto/
+
+      - name: Lint (ruff check)
+        run: python -m ruff check src/ tests/
+
+      - name: Format check (ruff format)
+        run: python -m ruff format --check src/ tests/
+
+      - name: Type check (mypy)
+        run: python -m mypy src/
+
+      - name: Unit tests
+        run: python -m pytest tests/unit/ -v
+
+  build:
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: pip install hatch
+
+      - name: Build wheel and sdist
+        run: hatch build
+
+      - name: Verify wheel contents
+        run: |
+          WHEEL=$(ls dist/*.whl)
+          echo "Built: $WHEEL"
+          python -m zipfile -l "$WHEEL"
+
+          # Verificar arquivos criticos no wheel
+          python -c "
+          import zipfile, sys
+          whl = '$WHEEL'
+          with zipfile.ZipFile(whl) as z:
+              names = z.namelist()
+              required = [
+                  'Macaw/__init__.py',
+                  'Macaw/py.typed',
+                  'Macaw/_types.py',
+                  'Macaw/exceptions.py',
+                  'Macaw/proto/stt_worker.proto',
+              ]
+              missing = [f for f in required if not any(f in n for n in names)]
+              if missing:
+                  print(f'ERRO: Arquivos faltando no wheel: {missing}')
+                  sys.exit(1)
+              print(f'Wheel OK: {len(names)} arquivos, todos os criticos presentes')
+          "
+
+      - name: Verify version consistency
+        run: |
+          # Verificar que pyproject.toml e __init__.py tem a mesma versao
+          PYPROJECT_VERSION=$(python -c "
+          import tomllib
+          with open('pyproject.toml', 'rb') as f:
+              data = tomllib.load(f)
+          print(data['project']['version'])
+          ")
+
+          INIT_VERSION=$(python -c "
+          import ast, pathlib
+          src = pathlib.Path('src/Macaw/__init__.py').read_text()
+          for node in ast.walk(ast.parse(src)):
+              if isinstance(node, ast.Assign):
+                  for target in node.targets:
+                      if isinstance(target, ast.Name) and target.id == '__version__':
+                          print(ast.literal_eval(node.value))
+          ")
+
+          echo "pyproject.toml: $PYPROJECT_VERSION"
+          echo "__init__.py:    $INIT_VERSION"
+
+          if [ "$PYPROJECT_VERSION" != "$INIT_VERSION" ]; then
+            echo "ERRO: Versoes divergem! pyproject.toml=$PYPROJECT_VERSION, __init__.py=$INIT_VERSION"
+            exit 1
+          fi
+
+          echo "Versoes consistentes: $PYPROJECT_VERSION"

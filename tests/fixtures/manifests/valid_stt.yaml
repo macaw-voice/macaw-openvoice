@@ -1,0 +1,30 @@
+name: faster-whisper-large-v3
+version: 3.0.0
+engine: faster-whisper
+type: stt
+description: "Faster Whisper Large V3 - encoder-decoder STT"
+
+capabilities:
+  streaming: true
+  architecture: encoder-decoder
+  languages: ["auto", "en", "pt", "es"]
+  word_timestamps: true
+  translation: true
+  partial_transcripts: true
+  hot_words: false
+  batch_inference: true
+  language_detection: true
+  initial_prompt: true
+
+resources:
+  memory_mb: 3072
+  gpu_required: false
+  gpu_recommended: true
+  load_time_seconds: 8
+
+engine_config:
+  model_size: "large-v3"
+  compute_type: "float16"
+  device: "auto"
+  beam_size: 5
+  vad_filter: false

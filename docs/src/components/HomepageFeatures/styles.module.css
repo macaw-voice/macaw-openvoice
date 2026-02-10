@@ -1,0 +1,28 @@
+.features {
+  padding: 3rem 0 4rem;
+}
+
+.featureGrid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.featureCard {
+  background: var(--Macaw-surface);
+  border: 1px solid var(--Macaw-border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 18px 40px rgba(15, 20, 19, 0.08);
+}
+
+.featureTitle {
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.featureDescription {
+  margin: 0;
+  color: var(--Macaw-muted);
+  line-height: 1.5;
+}

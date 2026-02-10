@@ -1,0 +1,20 @@
+name: kokoro-v1
+version: 1.0.0
+engine: kokoro
+type: tts
+description: "Kokoro TTS - neural text-to-speech"
+
+capabilities:
+  streaming: true
+  languages: ["en", "pt", "ja"]
+
+resources:
+  memory_mb: 512
+  gpu_required: false
+  gpu_recommended: true
+  load_time_seconds: 3
+
+engine_config:
+  device: "auto"
+  default_voice: "default"
+  sample_rate: 24000

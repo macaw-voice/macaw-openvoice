@@ -1,0 +1,245 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "Macaw-openvoice"
+version = "0.1.0"
+description = "Unified voice runtime (STT + TTS) with OpenAI-compatible API"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+authors = [
+    { name = "Macaw Team" },
+]
+keywords = [
+    "stt",
+    "tts",
+    "speech-to-text",
+    "text-to-speech",
+    "whisper",
+    "voice",
+    "openai",
+    "realtime",
+    "streaming",
+    "vad",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Framework :: FastAPI",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    "pydantic>=2.6,<3.0",
+    "pyyaml>=6.0,<7.0",
+    "structlog>=24.0,<26.0",
+    "numpy>=1.26,<3.0",
+    "click>=8.0,<9.0",
+    "httpx>=0.27,<1.0",
+    "scipy>=1.11,<2.0",
+    "soundfile>=0.12,<1.0",
+]
+
+[project.scripts]
+Macaw = "Macaw.cli:cli"
+
+[project.optional-dependencies]
+server = [
+    "fastapi>=0.115,<1.0",
+    "uvicorn[standard]>=0.34,<1.0",
+    "python-multipart>=0.0.18",
+]
+grpc = [
+    "grpcio>=1.68,<2.0",
+    "protobuf>=5.29,<6.0",
+]
+faster-whisper = [
+    "faster-whisper>=1.1,<2.0",
+]
+wenet = [
+    "wenet>=2.0,<3.0",
+]
+kokoro = [
+    "kokoro>=0.1,<1.0",
+]
+huggingface = [
+    "huggingface_hub>=0.20,<1.0",
+]
+stream = [
+    "sounddevice>=0.4,<1.0",
+    "websockets>=12.0,<14.0",
+]
+itn = [
+    "nemo_text_processing>=1.1,<2.0",
+]
+dev = [
+    "ruff>=0.9,<1.0",
+    "mypy>=1.14,<2.0",
+    "pytest>=8.0,<9.0",
+    "pytest-asyncio>=0.25,<1.0",
+    "grpcio-tools>=1.68,<2.0",
+    "types-PyYAML>=6.0",
+    "types-protobuf>=5.29",
+    "types-grpcio>=1.0",
+    "scipy-stubs>=1.11",
+    "fastapi>=0.115,<1.0",
+    "starlette>=0.36,<1.0",
+    "python-multipart>=0.0.18",
+    "prometheus_client>=0.20,<1.0",
+    "huggingface_hub>=0.20,<1.0",
+    "openai>=1.0",
+]
+all = [
+    "Macaw-openvoice[server,grpc,faster-whisper,wenet,itn,dev]",
+]
+
+[project.urls]
+Homepage = "https://github.com/useMacaw/Macaw-openvoice"
+Documentation = "https://useMacaw.github.io/Macaw-openvoice"
+Repository = "https://github.com/useMacaw/Macaw-openvoice"
+"Bug Tracker" = "https://github.com/useMacaw/Macaw-openvoice/issues"
+Changelog = "https://github.com/useMacaw/Macaw-openvoice/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/Macaw"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 99
+src = ["src"]
+extend-exclude = ["src/Macaw/proto/stt_worker_pb2*", "src/Macaw/proto/tts_worker_pb2*"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "SIM",    # flake8-simplify
+    "TCH",    # flake8-type-checking
+    "RUF",    # ruff-specific rules
+]
+ignore = [
+    "E501",   # Gerenciado pelo formatter
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["Macaw"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+check_untyped_defs = true
+no_implicit_reexport = true
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = "Macaw.proto.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "faster_whisper.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "nemo_text_processing.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "soundfile.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "scipy.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "scipy.signal"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "wenet.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "kokoro.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "huggingface_hub.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "sounddevice.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "websockets.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "torch.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "sounddevice.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "fastapi",
+    "fastapi.*",
+    "starlette",
+    "starlette.*",
+    "uvicorn",
+    "uvicorn.*",
+    "prometheus_client",
+    "prometheus_client.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "Macaw.server.routes.*"
+disable_error_code = ["untyped-decorator"]
+
+[[tool.mypy.overrides]]
+module = "Macaw.server.error_handlers"
+disable_error_code = ["arg-type"]
+
+[[tool.mypy.overrides]]
+module = "Macaw.vad.silero"
+disable_error_code = ["no-untyped-call"]
+
+[[tool.mypy.overrides]]
+module = "Macaw.cli.transcribe"
+disable_error_code = ["attr-defined"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:google.protobuf.*",
+    "ignore::DeprecationWarning:grpc.*",
+    "ignore::DeprecationWarning:websockets.*",
+    "ignore::ResourceWarning",
+]
+markers = [
+    "integration: testes que requerem modelo instalado",
+    "slow: testes que demoram mais de 10s",
+]

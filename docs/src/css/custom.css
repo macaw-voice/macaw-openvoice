@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --ifm-color-primary: #0b5d4a;
+  --ifm-color-primary-dark: #094d3e;
+  --ifm-color-primary-darker: #084537;
+  --ifm-color-primary-darkest: #063028;
+  --ifm-color-primary-light: #0f7158;
+  --ifm-color-primary-lighter: #138162;
+  --ifm-color-primary-lightest: #1a9b76;
+  --ifm-font-family-base: 'Space Grotesk', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --ifm-heading-font-family: 'Space Grotesk', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --ifm-font-family-monospace: 'IBM Plex Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --ifm-code-font-size: 92%;
+  --ifm-background-color: #f6f5f2;
+  --Macaw-surface: #ffffff;
+  --Macaw-ink: #121b18;
+  --Macaw-muted: #5b6a66;
+  --Macaw-accent: #0b5d4a;
+  --Macaw-accent-2: #c67a2a;
+  --Macaw-border: rgba(18, 27, 24, 0.12);
+  --docusaurus-highlighted-code-line-bg: rgba(11, 93, 74, 0.12);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #2bd0a3;
+  --ifm-color-primary-dark: #22b18b;
+  --ifm-color-primary-darker: #1fa082;
+  --ifm-color-primary-darkest: #167560;
+  --ifm-color-primary-light: #3ce2b4;
+  --ifm-color-primary-lighter: #56e6bf;
+  --ifm-color-primary-lightest: #7beed0;
+  --ifm-background-color: #0f1413;
+  --Macaw-surface: #141b19;
+  --Macaw-ink: #eef3f1;
+  --Macaw-muted: #a3b1ac;
+  --Macaw-accent: #2bd0a3;
+  --Macaw-accent-2: #d39a62;
+  --Macaw-border: rgba(238, 243, 241, 0.12);
+  --docusaurus-highlighted-code-line-bg: rgba(43, 208, 163, 0.2);
+}
+
+body {
+  color: var(--Macaw-ink);
+}
+
+code {
+  border: 1px solid var(--Macaw-border);
+}

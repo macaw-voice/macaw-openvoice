@@ -1,0 +1,56 @@
+# Reference projects (study only, not part of Macaw)
+examples/speaches/
+examples/ollama/
+docs_bkp
+# Claude Code
+.claude/
+logs.txt
+github_deploy.txt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.egg
+*.whl
+
+# Tooling caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+
+node_modules/
+dist/
+.next/
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+
+# gRPC generated
+src/Macaw/proto/*_pb2.py
+src/Macaw/proto/*_pb2_grpc.py
+src/Macaw/proto/*_pb2.pyi
+
+# Models (downloaded via Macaw pull)
+models/
+!src/Macaw/server/models/
