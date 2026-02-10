@@ -1,6 +1,12 @@
-"""Protobuf gRPC definitions para comunicacao runtime <-> worker."""
+"""Protobuf gRPC definitions para comunicacao runtime <-> worker.
 
-from macaw.proto.stt_worker_pb2 import (
+Use relative imports so the package works correctly when installed or
+imported from a development checkout (src/ layout). Absolute imports
+(`from macaw.proto...`) can fail during import time depending on
+sys.path ordering; relative imports are more robust here.
+"""
+
+from .stt_worker_pb2 import (
     AudioFrame,
     CancelRequest,
     CancelResponse,
@@ -12,22 +18,18 @@ from macaw.proto.stt_worker_pb2 import (
     TranscriptEvent,
     Word,
 )
-from macaw.proto.stt_worker_pb2_grpc import (
+from .stt_worker_pb2_grpc import (
     STTWorkerServicer,
     STTWorkerStub,
     add_STTWorkerServicer_to_server,
 )
-from macaw.proto.tts_worker_pb2 import (
+from .tts_worker_pb2 import (
     HealthRequest as TTSHealthRequest,
-)
-from macaw.proto.tts_worker_pb2 import (
     HealthResponse as TTSHealthResponse,
-)
-from macaw.proto.tts_worker_pb2 import (
     SynthesizeChunk,
     SynthesizeRequest,
 )
-from macaw.proto.tts_worker_pb2_grpc import (
+from .tts_worker_pb2_grpc import (
     TTSWorkerServicer,
     TTSWorkerStub,
     add_TTSWorkerServicer_to_server,
