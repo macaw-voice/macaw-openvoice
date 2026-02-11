@@ -2,76 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Light fallback — gold-accented ─────────────────────────── */
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 47.4% 11.2%;
-
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-
-  --popover: 0 0% 100%;
-  --popover-foreground: 222.2 47.4% 11.2%;
-
+  --background: 40 20% 98%;
+  --foreground: 230 25% 12%;
+  --muted: 40 15% 94%;
+  --muted-foreground: 220 10% 44%;
+  --popover: 40 20% 98%;
+  --popover-foreground: 230 25% 12%;
   --card: 0 0% 100%;
-  --card-foreground: 222.2 47.4% 11.2%;
-
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-
-  --primary: 222.2 47.4% 11.2%;
-  --primary-foreground: 210 40% 98%;
-
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
-
+  --card-foreground: 230 25% 12%;
+  --border: 40 15% 88%;
+  --input: 40 15% 88%;
+  --primary: 48 98% 44%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 40 15% 94%;
+  --secondary-foreground: 230 25% 12%;
+  --accent: 42 60% 92%;
+  --accent-foreground: 230 25% 12%;
   --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-
-  --ring: 222.2 84% 4.9%;
-
+  --destructive-foreground: 0 0% 100%;
+  --ring: 48 98% 44%;
   --radius: 0.75rem;
-
   --success: 142 71% 45%;
   --success-foreground: 0 0% 100%;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
-
-    --muted: 223 47% 11%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --popover: 224 71% 4%;
-    --popover-foreground: 215 20.2% 65.1%;
-
-    --card: 224 71% 4%;
-    --card-foreground: 213 31% 91%;
-
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 222.2 47.4% 11.2%;
-    --secondary-foreground: 210 40% 98%;
-
-    --accent: 216 34% 17%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --ring: 212.7 26.8% 83.9%;
-
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-  }
+/* ── Dark theme (forced via .dark class) ────────────────────── */
+/* Palette built around the Macaw logo gold #FDD614 (48° 98% 54%) */
+.dark {
+  --background: 230 25% 6%;
+  --foreground: 45 20% 92%;
+  --muted: 230 20% 11%;
+  --muted-foreground: 220 15% 60%;
+  --popover: 230 25% 8%;
+  --popover-foreground: 45 20% 92%;
+  --card: 230 22% 9%;
+  --card-foreground: 45 20% 92%;
+  --border: 230 18% 16%;
+  --input: 230 18% 16%;
+  --primary: 48 98% 54%;
+  --primary-foreground: 230 25% 6%;
+  --secondary: 230 20% 14%;
+  --secondary-foreground: 45 20% 92%;
+  --accent: 42 80% 18%;
+  --accent-foreground: 48 98% 90%;
+  --destructive: 0 62.8% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 48 98% 54%;
+  --success: 142 71% 45%;
+  --success-foreground: 0 0% 100%;
 }
 
 * {
@@ -83,6 +63,24 @@ body {
   color: hsl(var(--foreground));
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar styling (dark) ─────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.4);
 }
 
 /* Pulse animation for recording indicator */
@@ -114,21 +112,24 @@ body {
   animation: waveform 0.8s ease-in-out infinite;
 }
 
-/* Gradient text for hero section */
+/* Gradient text for hero section — gold to warm amber */
 .gradient-text {
-  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(222 60% 50%) 50%, hsl(270 60% 50%) 100%);
+  background: linear-gradient(135deg, hsl(48 98% 58%) 0%, hsl(38 90% 50%) 50%, hsl(28 85% 48%) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-@media (prefers-color-scheme: dark) {
-  .gradient-text {
-    background: linear-gradient(135deg, hsl(210 80% 70%) 0%, hsl(230 80% 75%) 50%, hsl(270 80% 75%) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
+/* Glow effect for hero — warm gold radiance */
+.hero-glow {
+  background: radial-gradient(ellipse 600px 300px at 50% 0%, hsl(48 98% 54% / 0.10) 0%, transparent 70%);
+}
+
+/* Glass card effect */
+.glass-card {
+  background: hsl(var(--card) / 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 /* Smooth transitions for tab content */

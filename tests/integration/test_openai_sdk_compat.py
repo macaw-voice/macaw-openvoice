@@ -8,16 +8,19 @@ Marcado como @pytest.mark.integration — requer `openai` instalado.
 
 from __future__ import annotations
 
-import asyncio
 import io
-import threading
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
+import anyio
+import httpx
 import pytest
-import uvicorn
 
-from Macaw._types import BatchResult, SegmentDetail, WordTimestamp
-from Macaw.server.app import create_app
+from macaw._types import BatchResult, SegmentDetail, WordTimestamp
+from macaw.server.app import create_app
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 
 def _make_batch_result() -> BatchResult:
@@ -37,7 +40,7 @@ def _make_batch_result() -> BatchResult:
     )
 
 
-def _make_app() -> object:
+def _make_app() -> FastAPI:
     registry = MagicMock()
     registry.has_model.return_value = True
     registry.get_manifest.return_value = MagicMock()
@@ -48,44 +51,33 @@ def _make_app() -> object:
     return create_app(registry=registry, scheduler=scheduler)
 
 
-class _ServerThread:
-    """Roda uvicorn em thread separada para testes de integracao."""
+class _SyncASGITransport(httpx.BaseTransport):
+    """Bridge httpx sync client with FastAPI ASGI app."""
 
-    def __init__(self, app: object, host: str = "127.0.0.1", port: int = 18765) -> None:
-        self.host = host
-        self.port = port
-        self.config = uvicorn.Config(app, host=host, port=port, log_level="error", ws="none")
-        self.server = uvicorn.Server(self.config)
-        self._thread: threading.Thread | None = None
-        self._loop: asyncio.AbstractEventLoop | None = None
+    def __init__(self, app: FastAPI) -> None:
+        self._transport = httpx.ASGITransport(app=app)
 
-    def start(self) -> None:
-        self._loop = asyncio.new_event_loop()
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        async def _send() -> tuple[int, httpx.Headers, bytes, dict[str, object]]:
+            response = await self._transport.handle_async_request(request)
+            body = await response.aread()
+            await response.aclose()
+            return response.status_code, response.headers, body, response.extensions
 
-        def _run() -> None:
-            self._loop.run_until_complete(self.server.serve())
-            self._loop.close()
+        status_code, headers, content, extensions = anyio.run(_send)
+        return httpx.Response(
+            status_code=status_code,
+            headers=headers,
+            content=content,
+            extensions=extensions,
+            request=request,
+        )
 
-        self._thread = threading.Thread(target=_run)
-        self._thread.daemon = True
-        self._thread.start()
+    def close(self) -> None:
+        async def _close() -> None:
+            await self._transport.aclose()
 
-        # Esperar server ficar pronto
-        import time
-
-        for _ in range(50):
-            if self.server.started:
-                break
-            time.sleep(0.1)
-
-    def stop(self) -> None:
-        self.server.should_exit = True
-        if self._thread:
-            self._thread.join(timeout=5)
-
-    @property
-    def base_url(self) -> str:
-        return f"http://{self.host}:{self.port}"
+        anyio.run(_close)
 
 
 @pytest.mark.integration
@@ -93,20 +85,22 @@ class TestOpenAISDKCompat:
     """Testes usando o SDK `openai` como cliente real."""
 
     @pytest.fixture(autouse=True)
-    def _server(self) -> object:  # type: ignore[misc]
+    def _client(self) -> object:  # type: ignore[misc]
         app = _make_app()
-        srv = _ServerThread(app)
-        srv.start()
-        self.server = srv
+        transport = _SyncASGITransport(app)
+        http_client = httpx.Client(transport=transport, base_url="http://macaw.test")
+        self._http_client = http_client
+        self._base_url = "http://macaw.test/v1"
         yield
-        srv.stop()
+        http_client.close()
 
     def test_transcribe_returns_text(self) -> None:
         from openai import OpenAI
 
         client = OpenAI(
-            base_url=f"{self.server.base_url}/v1",
+            base_url=self._base_url,
             api_key="not-needed",
+            http_client=self._http_client,
         )
 
         audio_file = io.BytesIO(b"fake-audio-data")
@@ -123,8 +117,9 @@ class TestOpenAISDKCompat:
         from openai import OpenAI
 
         client = OpenAI(
-            base_url=f"{self.server.base_url}/v1",
+            base_url=self._base_url,
             api_key="not-needed",
+            http_client=self._http_client,
         )
 
         audio_file = io.BytesIO(b"fake-audio-data")
@@ -146,8 +141,9 @@ class TestOpenAISDKCompat:
         from openai import OpenAI
 
         client = OpenAI(
-            base_url=f"{self.server.base_url}/v1",
+            base_url=self._base_url,
             api_key="not-needed",
+            http_client=self._http_client,
         )
 
         audio_file = io.BytesIO(b"fake-audio-data")
@@ -164,8 +160,9 @@ class TestOpenAISDKCompat:
         from openai import OpenAI
 
         client = OpenAI(
-            base_url=f"{self.server.base_url}/v1",
+            base_url=self._base_url,
             api_key="not-needed",
+            http_client=self._http_client,
         )
 
         audio_file = io.BytesIO(b"fake-audio-data")
