@@ -2,6 +2,7 @@
 examples/speaches/
 examples/ollama/
 docs_bkp
+MODELS_ROADMAP.md
 # Claude Code
 .claude/
 logs.txt
