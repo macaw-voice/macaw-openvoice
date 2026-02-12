@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ollama-specific deploy scripts: `tag_latest.sh`, `push_docker.sh`, `.this-is-the-create-dmg-repo` (#install-scripts)
 
 ### Fixed
-- Corrigido namespace Docker inconsistente no release.yml (useMacaw -> macaw-voice) para CPU e GPU builds (#release-ci)
+- Corrigido namespace Docker inconsistente no release.yml (useMacaw -> usemacaw) para CPU e GPU builds (#release-ci)
 - Corrigido caminho do volume de modelos nos Dockerfiles (/root/.Macaw -> /root/.macaw) (#release-ci)
 - Package metadata layout in `pyproject.toml` to keep dependencies out of `project.urls` (#release-oss)
 - Restored `scripts/generate_proto.sh` for CI proto stub verification (#release-oss)

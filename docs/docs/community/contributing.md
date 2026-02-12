@@ -21,7 +21,7 @@ Thank you for your interest in contributing to Macaw OpenVoice! This guide cover
 ### Clone and Install
 
 ```bash title="Clone the repository"
-git clone https://github.com/macaw-voice/macaw-openvoice.git
+git clone https://github.com/usemacaw/macaw-openvoice.git
 cd macaw-openvoice
 ```
 
@@ -195,6 +195,6 @@ These are the most common issues contributors encounter. Read these before divin
 
 ## Getting Help
 
-- Open an issue on [GitHub](https://github.com/macaw-voice/macaw-openvoice/issues) for bugs and feature requests
+- Open an issue on [GitHub](https://github.com/usemacaw/macaw-openvoice/issues) for bugs and feature requests
 - Check existing issues and PRs before creating duplicates
 - For architecture questions, review the [Architecture Overview](../architecture/overview)

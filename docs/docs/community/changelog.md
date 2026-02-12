@@ -48,5 +48,5 @@ All notable changes to Macaw OpenVoice are documented here. This project follows
 | M9 | Full-duplex STT + TTS | Done |
 
 :::info
-For the complete commit history, see the [GitHub repository](https://github.com/macaw-voice/macaw-openvoice).
+For the complete commit history, see the [GitHub repository](https://github.com/usemacaw/macaw-openvoice).
 :::

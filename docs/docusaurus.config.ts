@@ -14,7 +14,7 @@ const config: Config = {
   url: 'https://macawvoice.github.io',
   baseUrl: '/',
 
-  organizationName: 'macaw-voice',
+  organizationName: 'usemacaw',
   projectName: 'macaw-openvoice',
   trailingSlash: false,
 
@@ -31,7 +31,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          editUrl: 'https://github.com/macaw-voice/macaw-openvoice/edit/main/docs/',
+          editUrl: 'https://github.com/usemacaw/macaw-openvoice/edit/main/docs/',
         },
         blog: false,
         theme: {
@@ -58,7 +58,7 @@ const config: Config = {
     },
     announcementBar: {
       id: 'star_us',
-      content: 'If you like Macaw OpenVoice, give us a <a target="_blank" rel="noopener noreferrer" href="https://github.com/macaw-voice/macaw-openvoice">star on GitHub</a>!',
+      content: 'If you like Macaw OpenVoice, give us a <a target="_blank" rel="noopener noreferrer" href="https://github.com/usemacaw/macaw-openvoice">star on GitHub</a>!',
       backgroundColor: '#FDD614',
       textColor: '#0e1017',
       isCloseable: true,
@@ -95,7 +95,7 @@ const config: Config = {
           label: 'Architecture',
         },
         {
-          href: 'https://github.com/macaw-voice/macaw-openvoice',
+          href: 'https://github.com/usemacaw/macaw-openvoice',
           label: 'GitHub',
           position: 'right',
         },
@@ -160,11 +160,11 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/macaw-voice/macaw-openvoice',
+              href: 'https://github.com/usemacaw/macaw-openvoice',
             },
             {
               label: 'Issues',
-              href: 'https://github.com/macaw-voice/macaw-openvoice/issues',
+              href: 'https://github.com/usemacaw/macaw-openvoice/issues',
             },
             {
               label: 'Contributing',

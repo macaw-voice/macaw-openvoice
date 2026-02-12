@@ -3,7 +3,7 @@
 # It uses uv (Astral) to install Python 3.12 and the macaw-openvoice package.
 #
 # Quick install:
-#   curl -fsSL https://raw.githubusercontent.com/macaw-voice/macaw-openvoice/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/usemacaw/macaw-openvoice/main/install.sh | sh
 #
 # Environment variables:
 #   MACAW_VERSION       Pin to a specific version (default: latest)

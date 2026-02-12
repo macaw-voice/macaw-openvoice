@@ -102,11 +102,11 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/macaw-voice/macaw-openvoice"
+Homepage = "https://github.com/usemacaw/macaw-openvoice"
 Documentation = "https://macawvoice.github.io/Macaw-openvoice"
-Repository = "https://github.com/macaw-voice/macaw-openvoice"
-"Bug Tracker" = "https://github.com/macaw-voice/macaw-openvoice/issues"
-Changelog = "https://github.com/macaw-voice/macaw-openvoice/blob/main/CHANGELOG.md"
+Repository = "https://github.com/usemacaw/macaw-openvoice"
+"Bug Tracker" = "https://github.com/usemacaw/macaw-openvoice/issues"
+Changelog = "https://github.com/usemacaw/macaw-openvoice/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/macaw"]
