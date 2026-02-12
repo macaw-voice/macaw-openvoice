@@ -73,4 +73,4 @@ The following areas are under consideration for future development. These are no
 
 ## Contributing
 
-Want to help shape the roadmap? See the [Contributing Guide](./contributing) to get started, or open an issue on [GitHub](https://github.com/macaw-voice/macaw-openvoice/issues) to discuss new ideas.
+Want to help shape the roadmap? See the [Contributing Guide](./contributing) to get started, or open an issue on [GitHub](https://github.com/usemacaw/macaw-openvoice/issues) to discuss new ideas.

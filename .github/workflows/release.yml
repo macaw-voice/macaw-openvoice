@@ -186,7 +186,7 @@ jobs:
         # Requires "trusted publisher" configured on PyPI for this repo/workflow.
         # Setup: https://docs.pypi.org/trusted-publishers/adding-a-publisher/
         #   PyPI project: macaw-openvoice
-        #   Owner: macaw-voice
+        #   Owner: usemacaw
         #   Repository: macaw-openvoice
         #   Workflow: release.yml
         #   Environment: (leave blank)
@@ -224,10 +224,10 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ghcr.io/macaw-voice/macaw-openvoice:${{ steps.tag.outputs.version }}
-            ghcr.io/macaw-voice/macaw-openvoice:latest
+            ghcr.io/usemacaw/macaw-openvoice:${{ steps.tag.outputs.version }}
+            ghcr.io/usemacaw/macaw-openvoice:latest
           labels: |
-            org.opencontainers.image.source=https://github.com/macaw-voice/macaw-openvoice
+            org.opencontainers.image.source=https://github.com/usemacaw/macaw-openvoice
             org.opencontainers.image.version=${{ steps.tag.outputs.version }}
             org.opencontainers.image.description=Macaw OpenVoice - Voice runtime (STT + TTS)
           cache-from: type=gha
@@ -241,10 +241,10 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ghcr.io/macaw-voice/macaw-openvoice:${{ steps.tag.outputs.version }}-gpu
-            ghcr.io/macaw-voice/macaw-openvoice:latest-gpu
+            ghcr.io/usemacaw/macaw-openvoice:${{ steps.tag.outputs.version }}-gpu
+            ghcr.io/usemacaw/macaw-openvoice:latest-gpu
           labels: |
-            org.opencontainers.image.source=https://github.com/macaw-voice/macaw-openvoice
+            org.opencontainers.image.source=https://github.com/usemacaw/macaw-openvoice
             org.opencontainers.image.version=${{ steps.tag.outputs.version }}-gpu
             org.opencontainers.image.description=Macaw OpenVoice - GPU build with CUDA 12.4
           cache-from: type=gha
