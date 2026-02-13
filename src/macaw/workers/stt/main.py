@@ -67,6 +67,8 @@ async def serve(
     await backend.load(model_path, engine_config)
     logger.info("model_loaded", engine=engine)
 
+    await _warmup_backend(backend)
+
     model_name = str(engine_config.get("model_size", "unknown"))
     servicer = STTWorkerServicer(
         backend=backend,
@@ -104,6 +106,22 @@ async def serve(
     logger.info("worker_started", port=port, engine=engine)
 
     await server.wait_for_termination()
+
+
+async def _warmup_backend(backend: STTBackend) -> None:
+    """Run a dummy inference to warm up GPU caches and JIT.
+
+    First real request would otherwise bear the cost of kernel compilation,
+    memory allocation, and cache priming. A 1s silence transcription takes
+    ~200-500ms but saves that latency from the first user request.
+    """
+    # 1 second of silence at 16kHz, 16-bit PCM (2 bytes/sample)
+    silence = b"\x00\x00" * 16000
+    try:
+        await backend.transcribe_file(silence)
+        logger.info("warmup_complete")
+    except Exception as exc:
+        logger.warning("warmup_failed", error=str(exc))
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

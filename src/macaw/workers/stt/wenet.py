@@ -182,10 +182,16 @@ class WeNetBackend(STTBackend):
         # Minimum 160ms (2560 samples) to avoid degenerate tiny transcriptions.
         min_samples_for_partial = int(0.16 * _SAMPLE_RATE)
 
+        # Segment boundary prevents O(n²) re-transcription growth.
+        # Without it, buffer_chunks grows unbounded and np.concatenate +
+        # transcription cost increases linearly per chunk (total = O(n²)).
+        segment_threshold_samples = int(5.0 * _SAMPLE_RATE)
+
         buffer_chunks: list[np.ndarray] = []
         buffer_samples = 0
         segment_id = 0
         total_samples = 0
+        segment_offset_samples = 0
         last_partial_text = ""
 
         resolved_lang = language if language and language not in ("auto", "mixed") else None
@@ -215,8 +221,27 @@ class WeNetBackend(STTBackend):
 
                 result = await loop.run_in_executor(None, _partial_transcribe)
                 text = _extract_text(result)
-                if text and text != last_partial_text:
-                    start_ms = int((total_samples - len(accumulated)) / _SAMPLE_RATE * 1000)
+
+                # Segment boundary: emit final, clear buffer to bound work
+                if buffer_samples >= segment_threshold_samples:
+                    if text:
+                        start_ms = int(segment_offset_samples / _SAMPLE_RATE * 1000)
+                        end_ms = int(total_samples / _SAMPLE_RATE * 1000)
+                        yield TranscriptSegment(
+                            text=text,
+                            is_final=True,
+                            segment_id=segment_id,
+                            start_ms=start_ms,
+                            end_ms=end_ms,
+                            language=resolved_lang,
+                        )
+                    buffer_chunks = []
+                    buffer_samples = 0
+                    segment_id += 1
+                    segment_offset_samples = total_samples
+                    last_partial_text = ""
+                elif text and text != last_partial_text:
+                    start_ms = int(segment_offset_samples / _SAMPLE_RATE * 1000)
                     yield TranscriptSegment(
                         text=text,
                         is_final=False,
@@ -226,7 +251,7 @@ class WeNetBackend(STTBackend):
                     )
                     last_partial_text = text
 
-        # Final: transcribe all accumulated audio
+        # Final: transcribe remaining audio in buffer
         if buffer_chunks:
             all_audio = np.concatenate(buffer_chunks)
             if len(all_audio) > 0:
@@ -241,13 +266,14 @@ class WeNetBackend(STTBackend):
                 )
                 text = _extract_text(result)
                 if text:
-                    duration_ms = int(len(all_audio) / _SAMPLE_RATE * 1000)
+                    start_ms = int(segment_offset_samples / _SAMPLE_RATE * 1000)
+                    end_ms = int(total_samples / _SAMPLE_RATE * 1000)
                     yield TranscriptSegment(
                         text=text,
                         is_final=True,
                         segment_id=segment_id,
-                        start_ms=0,
-                        end_ms=duration_ms,
+                        start_ms=start_ms,
+                        end_ms=end_ms,
                         language=resolved_lang,
                     )
 

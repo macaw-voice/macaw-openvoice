@@ -42,6 +42,7 @@ class FasterWhisperBackend(STTBackend):
 
     def __init__(self) -> None:
         self._model: object | None = None
+        self._beam_size: int = 5
 
     @property
     def architecture(self) -> STTArchitecture:
@@ -55,6 +56,7 @@ class FasterWhisperBackend(STTBackend):
         model_size = str(config.get("model_size", model_path))
         compute_type = str(config.get("compute_type", "float16"))
         device = str(config.get("device", "auto"))
+        self._beam_size = int(config.get("beam_size", 5))  # type: ignore[call-overload]
 
         loop = asyncio.get_running_loop()
         try:
@@ -126,7 +128,7 @@ class FasterWhisperBackend(STTBackend):
                 initial_prompt=effective_prompt,
                 temperature=temperature,
                 word_timestamps=word_timestamps,
-                beam_size=5,
+                beam_size=self._beam_size,
                 vad_filter=False,
             ),
         )
@@ -242,7 +244,7 @@ class FasterWhisperBackend(STTBackend):
                 language=language,
                 initial_prompt=initial_prompt,
                 temperature=0.0,
-                beam_size=5,
+                beam_size=self._beam_size,
                 vad_filter=False,
             ),
         )

@@ -67,6 +67,8 @@ async def serve(
     await backend.load(model_path, engine_config)
     logger.info("model_loaded", engine=engine)
 
+    await _warmup_backend(backend)
+
     model_name = str(engine_config.get("model_name", "unknown"))
     servicer = TTSWorkerServicer(
         backend=backend,
@@ -104,6 +106,24 @@ async def serve(
     logger.info("worker_started", port=port, engine=engine)
 
     await server.wait_for_termination()
+
+
+async def _warmup_backend(backend: TTSBackend) -> None:
+    """Run a dummy synthesis to warm up GPU caches and JIT.
+
+    First real request would otherwise bear the cost of kernel compilation,
+    memory allocation, and cache priming. Synthesizing a short text takes
+    ~100-300ms but saves that latency from the first user request.
+    """
+    try:
+        # synthesize() is an async generator in concrete backends, but the
+        # ABC declares it as async def -> AsyncIterator (coroutine), causing
+        # a mypy mismatch. At runtime, it returns an async iterable directly.
+        async for _ in backend.synthesize("warmup"):  # type: ignore[attr-defined]
+            break  # First chunk is enough to prime the pipeline
+        logger.info("warmup_complete")
+    except Exception as exc:
+        logger.warning("warmup_failed", error=str(exc))
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
