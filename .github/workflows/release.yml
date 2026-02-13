@@ -216,22 +216,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push CPU image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          platforms: linux/amd64
-          tags: |
-            ghcr.io/usemacaw/macaw-openvoice:${{ steps.tag.outputs.version }}
-            ghcr.io/usemacaw/macaw-openvoice:latest
-          labels: |
-            org.opencontainers.image.source=https://github.com/usemacaw/macaw-openvoice
-            org.opencontainers.image.version=${{ steps.tag.outputs.version }}
-            org.opencontainers.image.description=Macaw OpenVoice - Voice runtime (STT + TTS)
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      # - name: Build and push CPU image
+      #   uses: docker/build-push-action@v6
+      #   with:
+      #     context: .
+      #     file: ./Dockerfile
+      #     push: true
+      #     platforms: linux/amd64
+      #     tags: |
+      #       ghcr.io/usemacaw/macaw-openvoice:${{ steps.tag.outputs.version }}
+      #       ghcr.io/usemacaw/macaw-openvoice:latest
+      #     labels: |
+      #       org.opencontainers.image.source=https://github.com/usemacaw/macaw-openvoice
+      #       org.opencontainers.image.version=${{ steps.tag.outputs.version }}
+      #       org.opencontainers.image.description=Macaw OpenVoice - Voice runtime (STT + TTS)
+      #     cache-from: type=gha
+      #     cache-to: type=gha,mode=max
 
       # - name: Build and push GPU image
       #   uses: docker/build-push-action@v6
