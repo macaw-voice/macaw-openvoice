@@ -25,6 +25,7 @@ class SynthesizeParams:
     voice: str
     sample_rate: int
     speed: float
+    options: dict[str, object] | None = None
 
 
 def proto_request_to_synthesize_params(
@@ -33,16 +34,31 @@ def proto_request_to_synthesize_params(
     """Convert gRPC SynthesizeRequest to params for TTSBackend.synthesize.
 
     Treat empty strings as defaults (protobuf default for strings is empty).
+    Extended fields (language, ref_audio, ref_text, instruction) are packed
+    into an options dict only when at least one is present.
     """
     voice: str = request.voice if request.voice else "default"
     sample_rate: int = request.sample_rate if request.sample_rate > 0 else 24000
     speed: float = request.speed if request.speed > 0.0 else 1.0
+
+    options: dict[str, object] | None = None
+    if request.language or request.ref_audio or request.ref_text or request.instruction:
+        options = {}
+        if request.language:
+            options["language"] = request.language
+        if request.ref_audio:
+            options["ref_audio"] = request.ref_audio
+        if request.ref_text:
+            options["ref_text"] = request.ref_text
+        if request.instruction:
+            options["instruction"] = request.instruction
 
     return SynthesizeParams(
         text=request.text,
         voice=voice,
         sample_rate=sample_rate,
         speed=speed,
+        options=options,
     )
 
 

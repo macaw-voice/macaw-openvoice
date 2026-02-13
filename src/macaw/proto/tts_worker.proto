@@ -18,6 +18,11 @@ message SynthesizeRequest {
   string voice = 3;              // Voice identifier
   int32 sample_rate = 4;         // Output audio sample rate
   float speed = 5;               // Synthesis speed (0.25-4.0)
+  // Extended options (LLM-based TTS engines)
+  string language = 6;           // Target language (e.g., "English", "Chinese")
+  bytes ref_audio = 7;           // Reference audio for voice cloning (PCM/WAV)
+  string ref_text = 8;           // Reference transcript for voice cloning
+  string instruction = 9;        // Voice design / style instruction
 }
 
 message SynthesizeChunk {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import io
 import struct
 import uuid
@@ -94,6 +95,14 @@ async def create_speech(
     if worker is None:
         raise WorkerUnavailableError(body.model)
 
+    # Decode base64 ref_audio if present
+    ref_audio_bytes: bytes | None = None
+    if body.ref_audio:
+        try:
+            ref_audio_bytes = base64.b64decode(body.ref_audio)
+        except Exception as exc:
+            raise InvalidRequestError(f"Invalid base64 in 'ref_audio': {exc}") from exc
+
     # Build proto request
     proto_request = build_tts_proto_request(
         request_id=request_id,
@@ -101,6 +110,10 @@ async def create_speech(
         voice=body.voice,
         sample_rate=_DEFAULT_SAMPLE_RATE,
         speed=body.speed,
+        language=body.language,
+        ref_audio=ref_audio_bytes,
+        ref_text=body.ref_text,
+        instruction=body.instruction,
     )
 
     # Send to TTS worker via gRPC (server-streaming)

@@ -12,7 +12,7 @@ class TestServeCommand:
         runner = CliRunner()
         result = runner.invoke(cli, ["serve", "--help"])
         assert result.exit_code == 0
-        assert "Inicia o Macaw API Server" in result.output
+        assert "Starts the Macaw API Server" in result.output
 
     def test_serve_help_shows_options(self) -> None:
         runner = CliRunner()

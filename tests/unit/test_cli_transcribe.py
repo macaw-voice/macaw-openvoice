@@ -18,7 +18,7 @@ class TestTranscribeCommand:
         runner = CliRunner()
         result = runner.invoke(cli, ["transcribe", "--help"])
         assert result.exit_code == 0
-        assert "Transcreve um arquivo de audio" in result.output
+        assert "Transcribes an audio file" in result.output
 
     def test_transcribe_requires_model(self) -> None:
         runner = CliRunner()
@@ -60,7 +60,7 @@ class TestTranscribeCommand:
         )
         assert result.exit_code != 0
         assert (
-            "nao encontrado" in result.output.lower() or "nao disponivel" in result.output.lower()
+            "file not found" in result.output.lower() or "not available" in result.output.lower()
         )
 
     def test_transcribe_server_not_running(self, tmp_path: Path) -> None:
@@ -82,7 +82,7 @@ class TestTranscribeCommand:
             ],
         )
         assert result.exit_code != 0
-        assert "Macaw serve" in result.output.lower() or "nao disponivel" in result.output.lower()
+        assert "macaw serve" in result.output.lower() or "not available" in result.output.lower()
 
     @patch("httpx.post")
     def test_transcribe_sends_hot_words(self, mock_post: MagicMock, tmp_path: Path) -> None:
@@ -242,7 +242,7 @@ class TestTranslateCommand:
         runner = CliRunner()
         result = runner.invoke(cli, ["translate", "--help"])
         assert result.exit_code == 0
-        assert "Traduz um arquivo de audio" in result.output
+        assert "Translates an audio file to English" in result.output
 
     def test_translate_requires_model(self) -> None:
         runner = CliRunner()

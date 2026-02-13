@@ -21,32 +21,32 @@ DEFAULT_WORKER_BASE_PORT = 50051
 
 
 @cli.command()
-@click.option("--host", default=DEFAULT_HOST, show_default=True, help="Host do API Server.")
-@click.option("--port", default=DEFAULT_PORT, type=int, show_default=True, help="Porta HTTP.")
+@click.option("--host", default=DEFAULT_HOST, show_default=True, help="API Server host.")
+@click.option("--port", default=DEFAULT_PORT, type=int, show_default=True, help="HTTP port.")
 @click.option(
     "--models-dir",
     default=DEFAULT_MODELS_DIR,
     show_default=True,
-    help="Diretorio com os modelos instalados.",
+    help="Directory with installed models.",
 )
 @click.option(
     "--cors-origins",
     default="",
-    help="Origens CORS (separadas por virgula). Ex: http://localhost:3000",
+    help="CORS origins (comma-separated). Ex: http://localhost:3000",
 )
 @click.option(
     "--log-format",
     type=click.Choice(["console", "json"]),
     default="console",
     show_default=True,
-    help="Formato do log.",
+    help="Log format.",
 )
 @click.option(
     "--log-level",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"]),
     default="INFO",
     show_default=True,
-    help="Nivel de log.",
+    help="Log level.",
 )
 def serve(
     host: str,
@@ -56,7 +56,7 @@ def serve(
     log_format: str,
     log_level: str,
 ) -> None:
-    """Inicia o Macaw API Server com workers para modelos instalados."""
+    """Starts the Macaw API Server with workers for installed models."""
     configure_logging(log_format=log_format, level=log_level)
     origins = [o.strip() for o in cors_origins.split(",") if o.strip()] if cors_origins else []
     asyncio.run(_serve(host, port, models_dir, cors_origins=origins))
@@ -86,8 +86,8 @@ async def _serve(
     models = registry.list_models()
     if not models:
         logger.error("no_models_found", models_dir=str(models_path))
-        click.echo(f"Erro: nenhum modelo encontrado em {models_path}", err=True)
-        click.echo("Execute 'macaw pull <model>' para instalar um modelo.", err=True)
+        click.echo(f"Error: no models found in {models_path}", err=True)
+        click.echo("Run 'macaw pull <model>' to install a model.", err=True)
         sys.exit(1)
 
     # 2. Spawn workers for STT models

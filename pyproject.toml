@@ -71,6 +71,9 @@ wenet = [
 kokoro = [
     "kokoro>=0.1,<1.0",
 ]
+qwen3-tts = [
+    "qwen-tts>=0.1,<2.0",
+]
 huggingface = [
     "huggingface_hub>=0.20,<1.0",
 ]
@@ -181,6 +184,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "kokoro.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "qwen_tts.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

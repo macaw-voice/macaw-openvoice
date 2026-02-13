@@ -253,6 +253,11 @@ class TTSSpeakCommand(BaseModel):
     text: str
     voice: str = "default"
     request_id: str | None = None
+    # Extended options for LLM-based TTS engines (e.g., Qwen3-TTS)
+    language: str | None = None
+    ref_audio: str | None = None  # base64
+    ref_text: str | None = None
+    instruction: str | None = None
 
 
 class TTSCancelCommand(BaseModel):

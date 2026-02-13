@@ -49,7 +49,7 @@ class TestListCommand:
         runner = CliRunner()
         result = runner.invoke(cli, ["list", "--models-dir", str(tmp_path)])
         assert result.exit_code == 0
-        assert "nenhum modelo" in result.output.lower()
+        assert "no models installed" in result.output.lower()
 
     def test_list_shows_models(self, tmp_path: Path) -> None:
         _create_model_dir(tmp_path, "faster-whisper-tiny")
@@ -98,7 +98,7 @@ class TestInspectCommand:
         runner = CliRunner()
         result = runner.invoke(cli, ["inspect", "inexistente", "--models-dir", str(tmp_path)])
         assert result.exit_code != 0
-        assert "nao encontrado" in result.output.lower()
+        assert "not found" in result.output.lower()
 
     def test_inspect_shows_languages(self, tmp_path: Path) -> None:
         _create_model_dir(tmp_path, "faster-whisper-tiny")

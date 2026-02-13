@@ -1,6 +1,6 @@
 """Abstract interface for TTS backends.
 
-Every TTS backend (Kokoro, Piper) must implement this interface
+Every TTS backend (Kokoro, Qwen3-TTS, etc.) must implement this interface
 to plug into the Macaw runtime.
 """
 
@@ -51,6 +51,7 @@ class TTSBackend(ABC):
         *,
         sample_rate: int = 24000,
         speed: float = 1.0,
+        options: dict[str, object] | None = None,
     ) -> AsyncIterator[bytes]:
         """Synthesize text into audio (streaming PCM chunks).
 
@@ -63,6 +64,9 @@ class TTSBackend(ABC):
             voice: Voice identifier (default: "default").
             sample_rate: Output audio sample rate.
             speed: Synthesis speed (0.25-4.0, default 1.0).
+            options: Engine-specific options (e.g., language, ref_audio,
+                ref_text, instruction for LLM-based TTS). Backends that
+                do not use extended options should ignore this parameter.
 
         Yields:
             16-bit PCM audio chunks.

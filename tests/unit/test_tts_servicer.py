@@ -49,6 +49,7 @@ class MockTTSBackend:
         *,
         sample_rate: int = 24000,
         speed: float = 1.0,
+        options: dict[str, object] | None = None,
     ) -> AsyncIterator[bytes]:
         for chunk in self._chunks:
             yield chunk
@@ -235,6 +236,7 @@ class TestSynthesizeErrors:
             *,
             sample_rate: int = 24000,
             speed: float = 1.0,
+            options: dict[str, object] | None = None,
         ) -> AsyncIterator[bytes]:
             raise RuntimeError("GPU OOM")
             yield b""  # pragma: no cover
@@ -520,6 +522,14 @@ class TestCreateBackend:
 
         backend = _create_backend("kokoro")
         assert isinstance(backend, KokoroBackend)
+
+    def test_qwen3_tts_returns_backend_instance(self) -> None:
+        """Qwen3-TTS engine retorna instancia de Qwen3TTSBackend."""
+        from macaw.workers.tts.main import _create_backend
+        from macaw.workers.tts.qwen3 import Qwen3TTSBackend
+
+        backend = _create_backend("qwen3-tts")
+        assert isinstance(backend, Qwen3TTSBackend)
 
 
 # ===================================================================

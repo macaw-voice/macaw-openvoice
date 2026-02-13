@@ -14,9 +14,9 @@ import pytest
 
 from macaw._types import VoiceInfo
 from macaw.exceptions import ModelLoadError, TTSSynthesisError
+from macaw.workers.tts.audio_utils import float32_to_pcm16_bytes
 from macaw.workers.tts.kokoro import (
     KokoroBackend,
-    _float32_to_pcm16_bytes,
     _resolve_device,
     _resolve_voice_path,
     _scan_voices_dir,
@@ -614,27 +614,27 @@ class TestScanVoicesDir:
 class TestFloat32ToPcm16Bytes:
     def test_converts_silence(self) -> None:
         audio = np.zeros(100, dtype=np.float32)
-        result = _float32_to_pcm16_bytes(audio)
+        result = float32_to_pcm16_bytes(audio)
         assert len(result) == 200  # 100 samples * 2 bytes/sample
         assert result == b"\x00\x00" * 100
 
     def test_converts_max_positive(self) -> None:
         audio = np.ones(1, dtype=np.float32)
-        result = _float32_to_pcm16_bytes(audio)
+        result = float32_to_pcm16_bytes(audio)
         assert len(result) == 2
         value = int.from_bytes(result, byteorder="little", signed=True)
         assert value == 32767
 
     def test_converts_max_negative(self) -> None:
         audio = np.array([-1.0], dtype=np.float32)
-        result = _float32_to_pcm16_bytes(audio)
+        result = float32_to_pcm16_bytes(audio)
         assert len(result) == 2
         value = int.from_bytes(result, byteorder="little", signed=True)
         assert value == -32768
 
     def test_clips_beyond_range(self) -> None:
         audio = np.array([2.0, -2.0], dtype=np.float32)
-        result = _float32_to_pcm16_bytes(audio)
+        result = float32_to_pcm16_bytes(audio)
         assert len(result) == 4
         values = np.frombuffer(result, dtype=np.int16)
         assert values[0] == 32767

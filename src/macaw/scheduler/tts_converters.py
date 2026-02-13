@@ -17,15 +17,28 @@ def build_tts_proto_request(
     voice: str,
     sample_rate: int,
     speed: float,
+    language: str | None = None,
+    ref_audio: bytes | None = None,
+    ref_text: str | None = None,
+    instruction: str | None = None,
 ) -> SynthesizeRequest:
     """Constroi SynthesizeRequest proto a partir dos parametros da API REST."""
-    return SynthesizeRequest(
+    req = SynthesizeRequest(
         request_id=request_id,
         text=text,
         voice=voice,
         sample_rate=sample_rate,
         speed=speed,
     )
+    if language:
+        req.language = language
+    if ref_audio:
+        req.ref_audio = ref_audio
+    if ref_text:
+        req.ref_text = ref_text
+    if instruction:
+        req.instruction = instruction
+    return req
 
 
 def tts_proto_chunks_to_result(

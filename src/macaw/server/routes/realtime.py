@@ -262,6 +262,10 @@ async def _tts_speak_task(
     model_tts: str | None,
     send_event: Callable[[ServerEvent], Awaitable[None]],
     cancel_event: asyncio.Event,
+    language: str | None = None,
+    ref_audio: str | None = None,
+    ref_text: str | None = None,
+    instruction: str | None = None,
 ) -> None:
     """Background task que executa sintese TTS e envia chunks ao cliente.
 
@@ -284,6 +288,10 @@ async def _tts_speak_task(
         model_tts: Nome do modelo TTS (None usa default do registry).
         send_event: Callback para enviar eventos ao cliente.
         cancel_event: Event para sinalizar cancelamento externo.
+        language: Target language for LLM-based TTS.
+        ref_audio: Base64-encoded reference audio for voice cloning.
+        ref_text: Reference transcript for voice cloning.
+        instruction: Voice design / style instruction.
     """
     from starlette.websockets import WebSocketState as _WSState
 
@@ -351,12 +359,37 @@ async def _tts_speak_task(
             return
 
         # 3. Build proto request
+        import base64 as _b64
+
+        ref_audio_bytes: bytes | None = None
+        if ref_audio:
+            try:
+                ref_audio_bytes = _b64.b64decode(ref_audio)
+            except Exception:
+                logger.warning(
+                    "tts_invalid_ref_audio_base64",
+                    session_id=session_id,
+                    request_id=request_id,
+                )
+                await send_event(
+                    StreamingErrorEvent(
+                        code="invalid_request",
+                        message="Invalid base64 in 'ref_audio'",
+                        recoverable=True,
+                    )
+                )
+                return
+
         proto_request = build_tts_proto_request(
             request_id=request_id,
             text=text,
             voice=voice,
             sample_rate=_TTS_SAMPLE_RATE,
             speed=1.0,
+            language=language,
+            ref_audio=ref_audio_bytes,
+            ref_text=ref_text,
+            instruction=instruction,
         )
 
         # 4. Open gRPC stream
@@ -723,6 +756,10 @@ async def realtime_endpoint(
                             model_tts=model_tts,
                             send_event=_on_session_event,
                             cancel_event=cancel_ev,
+                            language=cmd.language,
+                            ref_audio=cmd.ref_audio,
+                            ref_text=cmd.ref_text,
+                            instruction=cmd.instruction,
                         ),
                     )
 
