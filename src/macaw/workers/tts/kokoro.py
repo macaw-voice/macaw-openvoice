@@ -22,6 +22,7 @@ import numpy as np
 from macaw._types import VoiceInfo
 from macaw.exceptions import ModelLoadError, TTSSynthesisError
 from macaw.logging import get_logger
+from macaw.workers.tts.audio_utils import CHUNK_SIZE_BYTES, float32_to_pcm16_bytes
 from macaw.workers.tts.interface import TTSBackend
 
 if TYPE_CHECKING:
@@ -35,10 +36,6 @@ except ImportError:
 logger = get_logger("worker.tts.kokoro")
 
 _DEFAULT_SAMPLE_RATE = 24000
-
-# Size of audio chunks returned by synthesize (bytes).
-# 4096 bytes = 2048 PCM 16-bit samples = ~85ms at 24kHz.
-_CHUNK_SIZE_BYTES = 4096
 
 # Voice prefix mapping -> (lang_code, language_name)
 _VOICE_LANG_MAP: dict[str, tuple[str, str]] = {
@@ -126,6 +123,7 @@ class KokoroBackend(TTSBackend):
         *,
         sample_rate: int = _DEFAULT_SAMPLE_RATE,
         speed: float = 1.0,
+        options: dict[str, object] | None = None,
     ) -> AsyncIterator[bytes]:
         """Synthesize text into audio, returning 16-bit PCM chunks.
 
@@ -176,8 +174,8 @@ class KokoroBackend(TTSBackend):
             raise TTSSynthesisError(self._model_path, msg)
 
         # Yield in chunks for streaming
-        for i in range(0, len(audio_data), _CHUNK_SIZE_BYTES):
-            yield audio_data[i : i + _CHUNK_SIZE_BYTES]
+        for i in range(0, len(audio_data), CHUNK_SIZE_BYTES):
+            yield audio_data[i : i + CHUNK_SIZE_BYTES]
 
     async def voices(self) -> list[VoiceInfo]:
         if not self._voices_dir or not os.path.isdir(self._voices_dir):
@@ -347,7 +345,7 @@ def _synthesize_with_pipeline(
         raise TTSSynthesisError("kokoro", msg)
 
     combined = np.concatenate(audio_arrays)
-    return _float32_to_pcm16_bytes(combined)
+    return float32_to_pcm16_bytes(combined)
 
 
 def _scan_voices_dir(voices_dir: str) -> list[VoiceInfo]:
@@ -404,16 +402,3 @@ def _voice_id_to_gender(voice_id: str) -> str | None:
         if voice_id[1] == "m":
             return "male"
     return None
-
-
-def _float32_to_pcm16_bytes(audio_array: np.ndarray) -> bytes:
-    """Convert normalized float32 array [-1, 1] to 16-bit PCM bytes.
-
-    Args:
-        audio_array: Normalized float32 audio.
-
-    Returns:
-        16-bit PCM little-endian bytes.
-    """
-    int16_data = (audio_array * 32768.0).clip(-32768, 32767).astype(np.int16)
-    return int16_data.tobytes()

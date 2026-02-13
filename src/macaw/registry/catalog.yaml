@@ -208,3 +208,135 @@ models:
         default_voice: "af_heart"
         sample_rate: 24000
         lang_code: "a"
+
+  qwen3-tts-1.7b-custom:
+    repo: "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
+    engine: qwen3-tts
+    type: tts
+    description: "Qwen3-TTS 1.7B CustomVoice — 9 vozes preset, 10 idiomas"
+    manifest:
+      name: qwen3-tts-1.7b-custom
+      version: "1.0.0"
+      engine: qwen3-tts
+      type: tts
+      description: "Qwen3-TTS 1.7B - CustomVoice with 9 preset speakers"
+      capabilities:
+        streaming: true
+        languages: ["zh", "en", "ja", "ko", "de", "fr", "ru", "pt", "es", "it"]
+      resources:
+        memory_mb: 4096
+        gpu_required: false
+        gpu_recommended: true
+        load_time_seconds: 15
+      engine_config:
+        device: "auto"
+        dtype: "bfloat16"
+        variant: "custom_voice"
+        default_voice: "Chelsie"
+        default_language: "English"
+        sample_rate: 24000
+
+  qwen3-tts-0.6b-custom:
+    repo: "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"
+    engine: qwen3-tts
+    type: tts
+    description: "Qwen3-TTS 0.6B CustomVoice — leve, 9 vozes preset, 10 idiomas"
+    manifest:
+      name: qwen3-tts-0.6b-custom
+      version: "1.0.0"
+      engine: qwen3-tts
+      type: tts
+      description: "Qwen3-TTS 0.6B - lightweight CustomVoice"
+      capabilities:
+        streaming: true
+        languages: ["zh", "en", "ja", "ko", "de", "fr", "ru", "pt", "es", "it"]
+      resources:
+        memory_mb: 2048
+        gpu_required: false
+        gpu_recommended: true
+        load_time_seconds: 10
+      engine_config:
+        device: "auto"
+        dtype: "bfloat16"
+        variant: "custom_voice"
+        default_voice: "Chelsie"
+        default_language: "English"
+        sample_rate: 24000
+
+  qwen3-tts-1.7b-base:
+    repo: "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+    engine: qwen3-tts
+    type: tts
+    description: "Qwen3-TTS 1.7B Base — voice cloning de 3 segundos"
+    manifest:
+      name: qwen3-tts-1.7b-base
+      version: "1.0.0"
+      engine: qwen3-tts
+      type: tts
+      description: "Qwen3-TTS 1.7B - voice cloning from 3s reference"
+      capabilities:
+        streaming: true
+        languages: ["zh", "en", "ja", "ko", "de", "fr", "ru", "pt", "es", "it"]
+      resources:
+        memory_mb: 4096
+        gpu_required: false
+        gpu_recommended: true
+        load_time_seconds: 15
+      engine_config:
+        device: "auto"
+        dtype: "bfloat16"
+        variant: "base"
+        default_language: "English"
+        sample_rate: 24000
+
+  qwen3-tts-0.6b-base:
+    repo: "Qwen/Qwen3-TTS-12Hz-0.6B-Base"
+    engine: qwen3-tts
+    type: tts
+    description: "Qwen3-TTS 0.6B Base — voice cloning leve"
+    manifest:
+      name: qwen3-tts-0.6b-base
+      version: "1.0.0"
+      engine: qwen3-tts
+      type: tts
+      description: "Qwen3-TTS 0.6B - lightweight voice cloning"
+      capabilities:
+        streaming: true
+        languages: ["zh", "en", "ja", "ko", "de", "fr", "ru", "pt", "es", "it"]
+      resources:
+        memory_mb: 2048
+        gpu_required: false
+        gpu_recommended: true
+        load_time_seconds: 10
+      engine_config:
+        device: "auto"
+        dtype: "bfloat16"
+        variant: "base"
+        default_language: "English"
+        sample_rate: 24000
+
+  qwen3-tts-1.7b-design:
+    repo: "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
+    engine: qwen3-tts
+    type: tts
+    description: "Qwen3-TTS 1.7B VoiceDesign — voz customizada via instrucao"
+    manifest:
+      name: qwen3-tts-1.7b-design
+      version: "1.0.0"
+      engine: qwen3-tts
+      type: tts
+      description: "Qwen3-TTS 1.7B - natural language voice design"
+      capabilities:
+        streaming: true
+        languages: ["zh", "en", "ja", "ko", "de", "fr", "ru", "pt", "es", "it"]
+      resources:
+        memory_mb: 4096
+        gpu_required: false
+        gpu_recommended: true
+        load_time_seconds: 15
+      engine_config:
+        device: "auto"
+        dtype: "bfloat16"
+        variant: "voice_design"
+        default_language: "English"
+        sample_rate: 24000

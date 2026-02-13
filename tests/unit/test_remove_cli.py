@@ -30,7 +30,7 @@ class TestRemoveCommand:
             input="y\n",
         )
         assert result.exit_code == 0
-        assert "removido" in result.output.lower()
+        assert "removed" in result.output.lower()
 
     def test_remove_success_with_yes_flag(
         self, mock_downloader_cls: MagicMock, tmp_path: Path
@@ -46,7 +46,7 @@ class TestRemoveCommand:
             ["remove", "faster-whisper-tiny", "-y", "--models-dir", str(tmp_path)],
         )
         assert result.exit_code == 0
-        assert "removido" in result.output.lower()
+        assert "removed" in result.output.lower()
 
     def test_remove_cancelled_by_user(
         self, mock_downloader_cls: MagicMock, tmp_path: Path
@@ -62,7 +62,7 @@ class TestRemoveCommand:
             input="n\n",
         )
         assert result.exit_code == 0
-        assert "Cancelado" in result.output
+        assert "Cancelled" in result.output
         mock_downloader.remove.assert_not_called()
 
     def test_remove_not_installed(self, mock_downloader_cls: MagicMock, tmp_path: Path) -> None:
@@ -76,7 +76,7 @@ class TestRemoveCommand:
             ["remove", "nonexistent-model", "--models-dir", str(tmp_path)],
         )
         assert result.exit_code == 1
-        assert "nao esta instalado" in result.output
+        assert "is not installed" in result.output
 
     def test_remove_fails(self, mock_downloader_cls: MagicMock, tmp_path: Path) -> None:
         mock_downloader = MagicMock()
@@ -90,4 +90,4 @@ class TestRemoveCommand:
             ["remove", "failing-model", "-y", "--models-dir", str(tmp_path)],
         )
         assert result.exit_code == 1
-        assert "Erro ao remover" in result.output
+        assert "Error removing" in result.output

@@ -16,17 +16,17 @@ from macaw.cli.serve import DEFAULT_MODELS_DIR
     "--models-dir",
     default=DEFAULT_MODELS_DIR,
     show_default=True,
-    help="Diretorio com os modelos instalados.",
+    help="Directory with installed models.",
 )
 @click.option(
     "--yes",
     "-y",
     is_flag=True,
     default=False,
-    help="Confirma a remocao sem perguntar.",
+    help="Confirm removal without asking.",
 )
 def remove(model_name: str, models_dir: str, yes: bool) -> None:
-    """Remove um modelo instalado."""
+    """Remove an installed model."""
     from pathlib import Path
 
     from macaw.registry.downloader import ModelDownloader
@@ -34,16 +34,16 @@ def remove(model_name: str, models_dir: str, yes: bool) -> None:
     downloader = ModelDownloader(Path(models_dir).expanduser())
 
     if not downloader.is_installed(model_name):
-        click.echo(f"Erro: modelo '{model_name}' nao esta instalado.", err=True)
+        click.echo(f"Error: model '{model_name}' is not installed.", err=True)
         sys.exit(1)
 
-    if not yes and not click.confirm(f"Remover o modelo '{model_name}'?", default=False):
-        click.echo("Cancelado.")
+    if not yes and not click.confirm(f"Remove model '{model_name}'?", default=False):
+        click.echo("Cancelled.")
         return
 
     removed = downloader.remove(model_name)
     if removed:
-        click.echo(f"Modelo '{model_name}' removido.")
+        click.echo(f"Model '{model_name}' removed.")
     else:
-        click.echo(f"Erro ao remover modelo '{model_name}'.", err=True)
+        click.echo(f"Error removing model '{model_name}'.", err=True)
         sys.exit(1)

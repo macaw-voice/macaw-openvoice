@@ -38,6 +38,11 @@ def _create_backend(engine: str) -> TTSBackend:
 
         return KokoroBackend()
 
+    if engine == "qwen3-tts":
+        from macaw.workers.tts.qwen3 import Qwen3TTSBackend
+
+        return Qwen3TTSBackend()
+
     msg = f"Engine TTS nao suportada: {engine}"
     raise ValueError(msg)
 

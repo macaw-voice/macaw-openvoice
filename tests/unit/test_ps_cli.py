@@ -50,7 +50,7 @@ class TestPsCommand:
         runner = CliRunner()
         result = runner.invoke(cli, ["ps"])
         assert result.exit_code == 0
-        assert "Nenhum modelo carregado" in result.output
+        assert "No models loaded" in result.output
 
     @patch("httpx.get")
     def test_ps_server_not_available(self, mock_get: MagicMock) -> None:
@@ -59,7 +59,7 @@ class TestPsCommand:
         runner = CliRunner()
         result = runner.invoke(cli, ["ps"])
         assert result.exit_code == 1
-        assert "nao disponivel" in result.output
+        assert "not available" in result.output
 
     @patch("httpx.get")
     def test_ps_server_error(self, mock_get: MagicMock) -> None:

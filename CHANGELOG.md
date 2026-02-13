@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Qwen3-TTS backend com suporte a CustomVoice (9 vozes preset), Base (voice cloning), e VoiceDesign (instrucao em linguagem natural) (#qwen3-tts)
+- 5 modelos Qwen3-TTS no catalogo: 0.6B/1.7B CustomVoice, 0.6B/1.7B Base, 1.7B VoiceDesign (#qwen3-tts)
+- Campos opcionais `language`, `ref_audio`, `ref_text`, `instruction` na API REST e WebSocket para suportar TTS LLM-based (#qwen3-tts)
 - End-to-end demo notebook (`e2e_test.ipynb`) covering all CLI commands, REST API endpoints, and WebSocket protocols — client-facing, zero internal imports (#e2e)
 - Website (usemacaw.io) and contact email (hello@usemacaw.io) documented across README, docs site, contributing guides, and security policy (#docs)
 - CNAME file for GitHub Pages custom domain (`docs.usemacaw.io`) (#docs)
@@ -18,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kokoro TTS `languages` no catálogo listava apenas 3 idiomas (en, pt, ja) mas o backend suporta 8 — atualizado para en, es, fr, hi, it, ja, pt, zh (#catalog)
 
 ### Changed
+- TTSBackend.synthesize() agora aceita `options: dict` opcional para params engine-specific (#qwen3-tts)
 - Docusaurus config prepared for custom domain migration to `docs.usemacaw.io` (#docs)
 - Imagem Docker CPU agora é apenas `linux/amd64` — `pynini` (dependência de ITN) não publica wheels arm64 e requer OpenFst compilado from source (#release-ci)
 
@@ -29,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build da imagem Docker GPU falhava porque `pip` do sistema (Python 3.10) não funciona com Python 3.12 (`distutils` removido) — substituído por `python3.12 -m ensurepip` + `python3.12 -m pip` e removido `python3-pip` do apt (#release-ci)
 - Protobuf runtime passa a ser instalado por padrão para evitar mismatch com stubs gerados (#deps)
 
-## [0.1.4] - 2026-02-12
+## [0.1.5] - 2026-02-12
 
 ### Added
 - Cache de pip no CI para acelerar builds (#release-ci)

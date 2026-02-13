@@ -1,0 +1,19 @@
+name: qwen3-tts-test
+version: 1.0.0
+engine: qwen3-tts
+type: tts
+description: "Qwen3-TTS test fixture"
+capabilities:
+  streaming: true
+  languages: ["en", "zh"]
+resources:
+  memory_mb: 2048
+  gpu_required: false
+  gpu_recommended: true
+  load_time_seconds: 10
+engine_config:
+  device: "cpu"
+  dtype: "float32"
+  variant: "custom_voice"
+  default_voice: "Chelsie"
+  default_language: "English"

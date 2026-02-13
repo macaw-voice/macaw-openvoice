@@ -91,6 +91,7 @@ class TTSWorkerServicer(_BaseServicer):
                 voice=params.voice,
                 sample_rate=params.sample_rate,
                 speed=params.speed,
+                options=params.options,
             )
 
             # If it is a coroutine (async def without yield), await to get the iterator

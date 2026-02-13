@@ -27,3 +27,20 @@ class SpeechRequest(BaseModel):
         le=4.0,
         description="Velocidade da sintese (0.25-4.0).",
     )
+    # Extended options for LLM-based TTS engines (e.g., Qwen3-TTS)
+    language: str | None = Field(
+        default=None,
+        description="Idioma alvo (e.g., 'English', 'Chinese').",
+    )
+    ref_audio: str | None = Field(
+        default=None,
+        description="Audio de referencia em base64 para voice cloning.",
+    )
+    ref_text: str | None = Field(
+        default=None,
+        description="Transcricao do audio de referencia.",
+    )
+    instruction: str | None = Field(
+        default=None,
+        description="Instrucao de estilo/voz para voice design.",
+    )
