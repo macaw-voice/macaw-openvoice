@@ -2,7 +2,7 @@
 #
 # Cada entrada mapeia um nome de modelo para:
 # - repo: repositorio HuggingFace Hub
-# - engine: engine do Macaw (faster-whisper, wenet, kokoro)
+# - engine: engine do Macaw (faster-whisper, kokoro, qwen3-tts)
 # - type: stt ou tts
 # - architecture: encoder-decoder, ctc, streaming-native (apenas STT)
 # - description: descricao curta

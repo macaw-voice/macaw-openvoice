@@ -144,41 +144,6 @@ class TestConfigureTorchInference:
             _configure_torch_inference()
 
 
-class TestWeNetInferenceMode:
-    """_transcribe_with_model wraps inference in torch.inference_mode."""
-
-    def test_inference_mode_used_during_transcription(self) -> None:
-        """Verify _transcribe_with_model uses torch.inference_mode when available.
-
-        We test by patching the import inside the function rather than
-        reloading the module, to avoid class identity issues with other tests.
-        """
-        import numpy as np
-
-        from macaw.workers.stt.wenet import _transcribe_with_model
-
-        mock_model = MagicMock()
-        mock_model.transcribe.return_value = {"text": "hello"}
-
-        audio = np.zeros(1600, dtype=np.float32)
-
-        mock_ctx = MagicMock()
-        mock_inference_mode = MagicMock(return_value=mock_ctx)
-
-        # Patch the 'import torch' inside _transcribe_with_model
-        with patch("macaw.workers.stt.wenet.importlib", create=True):
-            # The function does `import torch` locally, so we patch sys.modules
-            mock_torch = MagicMock()
-            mock_torch.inference_mode = mock_inference_mode
-            with patch.dict("sys.modules", {"torch": mock_torch}):
-                result = _transcribe_with_model(mock_model, audio)
-
-        assert result["text"] == "hello"
-        mock_inference_mode.assert_called_once()
-        mock_ctx.__enter__.assert_called_once()
-        mock_ctx.__exit__.assert_called_once()
-
-
 class TestSTTWarmup:
     """STT _warmup_backend runs configurable warmup passes with RTFx measurement."""
 

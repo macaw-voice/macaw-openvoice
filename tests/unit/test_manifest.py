@@ -92,7 +92,7 @@ resources:
         yaml_str = """
 name: test-ctc
 version: 1.0.0
-engine: wenet
+engine: test-stt
 type: stt
 capabilities:
   architecture: ctc

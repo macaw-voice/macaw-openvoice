@@ -203,7 +203,6 @@ curl -X POST http://localhost:8000/v1/audio/speech \
     |   gRPC)         |  |   gRPC)      |
     |                 |  |              |
     | Faster-Whisper  |  | Kokoro       |
-    | WeNet           |  |              |
     +-----------------+  +--------------+
              |
   +----------+-------------------------------------+
@@ -231,7 +230,6 @@ curl -X POST http://localhost:8000/v1/audio/speech \
 | Engine | Type | Architecture | Partials | Hot Words | Status |
 |--------|------|-------------|----------|-----------|--------|
 | [Faster-Whisper](https://github.com/SYSTRAN/faster-whisper) | STT | encoder-decoder | LocalAgreement | via initial_prompt | Supported |
-| [WeNet](https://github.com/wenet-e2e/wenet) | STT | CTC | native | native keyword boosting | Supported |
 | [Kokoro](https://github.com/hexgrad/kokoro) | TTS | neural | — | — | Supported |
 
 Adding a new engine requires ~400-700 lines of code and zero changes to the runtime core. See the [Adding an Engine](https://usemacaw.github.io/macaw-openvoice/docs/guides/adding-engine) guide.

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - CLI `macaw catalog` para listar modelos disponiveis para download no catalogo, com tabela formatada (NAME, TYPE, ENGINE, DESCRIPTION) (#catalog)
-- `macaw pull` instala automaticamente as dependencias da engine do modelo apos download — engines com extras opcionais (faster-whisper, kokoro, wenet, qwen3-tts) sao instaladas via pip sem intervencao manual (#pull)
+- `macaw pull` instala automaticamente as dependencias da engine do modelo apos download — engines com extras opcionais (faster-whisper, kokoro, qwen3-tts) sao instaladas via pip sem intervencao manual (#pull)
 - Qwen3-TTS backend com suporte a CustomVoice (9 vozes preset), Base (voice cloning), e VoiceDesign (instrucao em linguagem natural) (#qwen3-tts)
 - 5 modelos Qwen3-TTS no catalogo: 0.6B/1.7B CustomVoice, 0.6B/1.7B Base, 1.7B VoiceDesign (#qwen3-tts)
 - Campos opcionais `language`, `ref_audio`, `ref_text`, `instruction` na API REST e WebSocket para suportar TTS LLM-based (#qwen3-tts)
@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kokoro TTS `languages` no catálogo listava apenas 3 idiomas (en, pt, ja) mas o backend suporta 8 — atualizado para en, es, fr, hi, it, ja, pt, zh (#catalog)
 - `GET /health` reportava `status: "ok"` antes dos workers gRPC estarem prontos, causando race condition onde requests TTS falhavam com 503 logo após o servidor iniciar — agora retorna `status: "loading"` enquanto workers estão iniciando e `status: "degraded"` se algum crashou (#health)
 
+### Removed
+- WeNet STT backend removido — engine, testes, manifesto, dependencia opcional e documentacao (#wenet-removal)
+
 ### Changed
 - `POST /v1/audio/speech` agora usa `StreamingResponse` — audio chunks são enviados ao cliente conforme chegam do gRPC worker, reduzindo TTFB significativamente (#perf)
 - TTS gRPC channel é reutilizado entre chamadas `tts.speak` na mesma conexão WebSocket — elimina overhead de TCP+HTTP/2 handshake (~5-20ms por request) (#perf)
@@ -33,7 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - KokoroBackend `synthesize()` agora usa true streaming via `asyncio.Queue` — cada segmento do KPipeline é convertido para PCM e yielded imediatamente, reduzindo TTFB de tempo-total-de-síntese para tempo-do-primeiro-segmento (#perf)
 - Int16→float32 conversion no `StreamingPreprocessor` usa divisão in-place (`/=`) — elimina 1 array temporário por frame no hot path STT (#perf)
 - `EnergyPreFilter.is_silence()` usa `np.dot()` para RMS e operações in-place para spectral flatness — elimina 3 arrays temporários por frame no pre-filter VAD (#perf)
-- WeNet CTC `transcribe_stream()` agora segmenta buffer a cada 5s — previne crescimento O(n²) de re-transcription em streams longos, buffer é limpo após cada segmento final (#perf)
 - FasterWhisperBackend `beam_size` agora lido de `engine_config` em vez de hardcoded=5 — permite tuning via `macaw.yaml` manifest (#perf)
 - Workers STT e TTS executam dummy inference (warmup) após `load()` — GPU caches e JIT são primados antes do primeiro request real, reduzindo latência da primeira inferência (#perf)
 - `docker-compose.yml` agora inclui `deploy.resources` com limites de memória (4G) e CPU (4 cores) — previne OOM killer em ambientes compartilhados (#infra)

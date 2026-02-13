@@ -1,6 +1,6 @@
 """Abstract interface for STT backends.
 
-Every STT backend (Faster-Whisper, WeNet, Paraformer) must implement
+Every STT backend (Faster-Whisper, Paraformer, etc.) must implement
 this interface to plug into the Macaw runtime.
 """
 

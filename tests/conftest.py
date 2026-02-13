@@ -69,14 +69,6 @@ def minimal_manifest_path() -> Path:
 
 
 @pytest.fixture
-def valid_stt_wenet_manifest_path() -> Path:
-    """Caminho para manifesto STT WeNet CTC valido."""
-    path = MANIFESTS_DIR / "valid_stt_wenet.yaml"
-    assert path.exists(), f"Fixture de manifesto nao encontrada: {path}"
-    return path
-
-
-@pytest.fixture
 def invalid_manifest_path() -> Path:
     """Caminho para manifesto invalido (campos obrigatorios faltando)."""
     path = MANIFESTS_DIR / "invalid_missing.yaml"

@@ -29,7 +29,7 @@ src/macaw/
 ├── scheduler/        # Async priority queue, cancellation, batching, latency tracking, TTS converters, metrics
 ├── registry/         # Model Registry (macaw.yaml, lifecycle)
 ├── workers/          # Subprocess gRPC management
-│   ├── stt/          # STTBackend interface + FasterWhisperBackend + WeNetBackend
+│   ├── stt/          # STTBackend interface + FasterWhisperBackend
 │   └── tts/          # TTSBackend interface + KokoroBackend
 ├── preprocessing/    # Audio pipeline (resample, DC remove, gain normalize)
 ├── postprocessing/   # Text pipeline (ITN via NeMo, fail-open)
@@ -46,7 +46,7 @@ PRD: @docs/PRD.md
 ## Key Design Decisions
 
 - **Um binario, um processo, dois tipos de worker.** STT e TTS compartilham API Server, Registry, Scheduler, CLI. Workers sao subprocessos gRPC isolados.
-- **Model-agnostic via campo `architecture`** no manifesto: `encoder-decoder` (Whisper), `ctc` (WeNet), `streaming-native` (Paraformer). O runtime adapta o pipeline automaticamente.
+- **Model-agnostic via campo `architecture`** no manifesto: `encoder-decoder` (Whisper), `ctc`, `streaming-native` (Paraformer). O runtime adapta o pipeline automaticamente.
 - **VAD no runtime, nao na engine.** Silero VAD como biblioteca, com energy pre-filter proprio. Garante comportamento consistente entre engines.
 - **Preprocessing e post-processing sao responsabilidade do runtime**, nao da engine. Engines recebem PCM 16kHz normalizado e retornam texto cru.
 - **Workers sao subprocessos gRPC** — crash do worker nao derruba o runtime. Recovery via WAL in-memory.
@@ -123,7 +123,7 @@ Como adicionar nova engine: @docs/ADDING_ENGINE.md
 - Venv: `.venv/` criado com `uv venv --python 3.12`
 - Todos os comandos devem usar `.venv/bin/` ou `make` targets (que ja usam `.venv/bin/`)
 - CUDA opcional (fallback para CPU transparente)
-- Dependencias pesadas (Faster-Whisper, WeNet, nemo_text_processing) sao opcionais por engine
+- Dependencias pesadas (Faster-Whisper, nemo_text_processing) sao opcionais por engine
 - gRPC tools necessarios para gerar protobufs: `grpcio-tools`
 
 ## API Contracts

@@ -8,7 +8,6 @@ import importlib.util
 ENGINE_PACKAGE: dict[str, str] = {
     "faster-whisper": "faster_whisper",
     "kokoro": "kokoro",
-    "wenet": "wenet",
     "qwen3-tts": "qwen_tts",
 }
 

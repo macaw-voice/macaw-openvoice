@@ -15,7 +15,7 @@ class STTArchitecture(Enum):
 
     Determines how the runtime adapts the streaming pipeline:
     - ENCODER_DECODER: window accumulation, LocalAgreement for partials (e.g., Whisper)
-    - CTC: frame-by-frame, native partials (e.g., WeNet CTC)
+    - CTC: frame-by-frame, native partials (CTC-based models)
     - STREAMING_NATIVE: true streaming, engine manages state (e.g., Paraformer)
     """
 

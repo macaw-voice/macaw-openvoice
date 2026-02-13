@@ -1,7 +1,7 @@
 """Testes para KokoroBackend.
 
 Usa mocks para o modulo kokoro -- nao requer kokoro instalado.
-Segue o mesmo padrao de test_wenet_backend.py.
+Segue o mesmo padrao dos testes de STT backend.
 """
 
 from __future__ import annotations
