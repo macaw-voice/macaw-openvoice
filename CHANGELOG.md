@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `macaw pull` instala automaticamente as dependencias da engine do modelo apos download — engines com extras opcionais (faster-whisper, kokoro, wenet, qwen3-tts) sao instaladas via pip sem intervencao manual (#pull)
 - Qwen3-TTS backend com suporte a CustomVoice (9 vozes preset), Base (voice cloning), e VoiceDesign (instrucao em linguagem natural) (#qwen3-tts)
 - 5 modelos Qwen3-TTS no catalogo: 0.6B/1.7B CustomVoice, 0.6B/1.7B Base, 1.7B VoiceDesign (#qwen3-tts)
 - Campos opcionais `language`, `ref_audio`, `ref_text`, `instruction` na API REST e WebSocket para suportar TTS LLM-based (#qwen3-tts)
@@ -17,10 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DNS setup guide (`docs/DNS_SETUP.md`) for migrating docs to `docs.usemacaw.io` (#docs)
 
 ### Fixed
+- `macaw serve` não tenta mais spawnar workers para engines não instaladas — modelos com dependência opcional ausente são pulados com warning claro indicando o comando de instalação (#serve)
 - Protobuf stubs (`*_pb2.py`) ausentes no wheel PyPI causavam `ModuleNotFoundError` ao rodar `macaw serve` — adicionado hatch build hook que gera os stubs automaticamente durante o build (#build)
 - Kokoro TTS `languages` no catálogo listava apenas 3 idiomas (en, pt, ja) mas o backend suporta 8 — atualizado para en, es, fr, hi, it, ja, pt, zh (#catalog)
+- `GET /health` reportava `status: "ok"` antes dos workers gRPC estarem prontos, causando race condition onde requests TTS falhavam com 503 logo após o servidor iniciar — agora retorna `status: "loading"` enquanto workers estão iniciando e `status: "degraded"` se algum crashou (#health)
 
 ### Changed
+- `fastapi`, `uvicorn`, `python-multipart` e `huggingface_hub` movidos de extras opcionais para dependências base — `pip install macaw-openvoice` agora inclui tudo necessário para `macaw serve` funcionar (#deps)
 - TTSBackend.synthesize() agora aceita `options: dict` opcional para params engine-specific (#qwen3-tts)
 - Docusaurus config prepared for custom domain migration to `docs.usemacaw.io` (#docs)
 - Imagem Docker CPU agora é apenas `linux/amd64` — `pynini` (dependência de ITN) não publica wheels arm64 e requer OpenFst compilado from source (#release-ci)

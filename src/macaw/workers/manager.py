@@ -195,6 +195,18 @@ class WorkerManager:
                 return handle
         return None
 
+    def worker_summary(self) -> dict[str, int]:
+        """Return a summary of worker states.
+
+        Returns:
+            Dict with counts: total, ready, starting, crashed.
+        """
+        total = len(self._workers)
+        ready = sum(1 for h in self._workers.values() if h.state == WorkerState.READY)
+        starting = sum(1 for h in self._workers.values() if h.state == WorkerState.STARTING)
+        crashed = sum(1 for h in self._workers.values() if h.state == WorkerState.CRASHED)
+        return {"total": total, "ready": ready, "starting": starting, "crashed": crashed}
+
     async def _health_probe(self, worker_id: str) -> None:
         """Check worker health with exponential backoff after spawn.
 

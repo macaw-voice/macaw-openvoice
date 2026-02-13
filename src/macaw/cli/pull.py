@@ -2,12 +2,37 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 
 import click
 
 from macaw.cli.main import cli
 from macaw.cli.serve import DEFAULT_MODELS_DIR
+from macaw.engines import is_engine_available
+
+
+def _install_engine_deps(engine: str) -> bool:
+    """Install the optional extra for *engine* via pip.
+
+    Returns ``True`` if installation succeeded or was unnecessary.
+    """
+    if is_engine_available(engine):
+        return True
+
+    extra = engine  # extra name matches engine name in pyproject.toml
+    click.echo(f"Installing dependencies for engine '{engine}'...")
+    result = subprocess.run(
+        [sys.executable, "-m", "pip", "install", f"macaw-openvoice[{extra}]"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        click.echo(f"Warning: failed to install '{extra}' dependencies.", err=True)
+        click.echo(f"Install manually: pip install macaw-openvoice[{extra}]", err=True)
+        return False
+    click.echo(f"Engine '{engine}' dependencies installed.")
+    return True
 
 
 @cli.command()
@@ -54,6 +79,7 @@ def pull(model_name: str, models_dir: str, force: bool) -> None:
 
     if downloader.is_installed(model_name) and not force:
         click.echo(f"Model '{model_name}' is already installed.")
+        _install_engine_deps(entry.engine)
         click.echo("Use --force to reinstall.")
         return
 
@@ -69,4 +95,8 @@ def pull(model_name: str, models_dir: str, force: bool) -> None:
         sys.exit(1)
 
     click.echo(f"Model installed in {model_dir}")
+
+    # Auto-install engine dependencies
+    _install_engine_deps(entry.engine)
+
     click.echo("Run 'macaw serve' to start the server.")

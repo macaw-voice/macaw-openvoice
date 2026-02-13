@@ -10,6 +10,7 @@ from pathlib import Path
 import click
 
 from macaw.cli.main import cli
+from macaw.engines import is_engine_available
 from macaw.logging import configure_logging, get_logger
 
 logger = get_logger("cli.serve")
@@ -96,6 +97,14 @@ async def _serve(
 
     stt_models = [m for m in models if m.model_type == ModelType.STT]
     for manifest in stt_models:
+        if not is_engine_available(manifest.engine):
+            logger.warning(
+                "engine_not_installed",
+                model=manifest.name,
+                engine=manifest.engine,
+                hint=f"pip install macaw-openvoice[{manifest.engine}]",
+            )
+            continue
         model_path = str(registry.get_model_path(manifest.name))
         await worker_manager.spawn_worker(
             model_name=manifest.name,
@@ -116,6 +125,14 @@ async def _serve(
 
     tts_models = [m for m in models if m.model_type == ModelType.TTS]
     for manifest in tts_models:
+        if not is_engine_available(manifest.engine):
+            logger.warning(
+                "engine_not_installed",
+                model=manifest.name,
+                engine=manifest.engine,
+                hint=f"pip install macaw-openvoice[{manifest.engine}]",
+            )
+            continue
         model_path = str(registry.get_model_path(manifest.name))
         tts_engine_config = manifest.engine_config.model_dump()
         tts_engine_config["model_name"] = manifest.name
@@ -135,6 +152,9 @@ async def _serve(
             worker_type="tts",
         )
         port_counter += 1
+
+    if worker_manager.worker_summary()["total"] == 0:
+        logger.warning("no_workers_spawned", hint="Install engine packages. See: macaw list")
 
     logger.info(
         "server_starting",

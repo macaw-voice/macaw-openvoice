@@ -48,17 +48,16 @@ dependencies = [
     "soundfile>=0.12,<1.0",
     "grpcio>=1.78,<2.0",
     "protobuf>=6.31,<7.0",
+    "fastapi>=0.115,<1.0",
+    "uvicorn[standard]>=0.34,<1.0",
+    "python-multipart>=0.0.18",
+    "huggingface_hub>=0.20,<1.0",
 ]
 
 [project.scripts]
 macaw = "macaw.cli:cli"
 
 [project.optional-dependencies]
-server = [
-    "fastapi>=0.115,<1.0",
-    "uvicorn[standard]>=0.34,<1.0",
-    "python-multipart>=0.0.18",
-]
 grpc = [
     "grpcio-tools>=1.78,<2.0",
 ]
@@ -73,9 +72,6 @@ kokoro = [
 ]
 qwen3-tts = [
     "qwen-tts>=0.1,<2.0",
-]
-huggingface = [
-    "huggingface_hub>=0.20,<1.0",
 ]
 stream = [
     "sounddevice>=0.4,<1.0",
@@ -94,15 +90,11 @@ dev = [
     "types-protobuf>=6.31,<7.0",
     "types-grpcio>=1.0",
     "scipy-stubs>=1.11",
-    "fastapi>=0.115,<1.0",
-    "starlette>=0.36,<1.0",
-    "python-multipart>=0.0.18",
     "prometheus_client>=0.20,<1.0",
-    "huggingface_hub>=0.20,<1.0",
     "openai>=1.0",
 ]
 all = [
-    "macaw-openvoice[server,grpc,faster-whisper,wenet,itn,dev]",
+    "macaw-openvoice[grpc,faster-whisper,wenet,itn,dev]",
 ]
 
 [project.urls]
