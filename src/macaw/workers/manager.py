@@ -356,6 +356,8 @@ def _build_worker_cmd(
     Returns:
         List of arguments for subprocess.Popen.
     """
+    import json
+
     module = "macaw.workers.tts" if worker_type == "tts" else "macaw.workers.stt"
     cmd = [
         sys.executable,
@@ -367,24 +369,9 @@ def _build_worker_cmd(
         engine,
         "--model-path",
         model_path,
+        "--engine-config",
+        json.dumps(engine_config),
     ]
-
-    if worker_type == "tts":
-        config_to_flag: dict[str, str] = {
-            "device": "--device",
-            "model_name": "--model-name",
-        }
-    else:
-        config_to_flag = {
-            "compute_type": "--compute-type",
-            "device": "--device",
-            "model_size": "--model-size",
-            "beam_size": "--beam-size",
-        }
-
-    for config_key, cli_flag in config_to_flag.items():
-        if config_key in engine_config:
-            cmd.extend([cli_flag, str(engine_config[config_key])])
 
     return cmd
 

@@ -115,23 +115,22 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--model-path", type=str, required=True, help="Model path")
     parser.add_argument(
-        "--device", type=str, default="auto", help="Device: auto, cpu, cuda (default: auto)"
-    )
-    parser.add_argument(
-        "--model-name", type=str, default="kokoro-v1", help="Model name (default: kokoro-v1)"
+        "--engine-config",
+        type=str,
+        default="{}",
+        help="Engine config as JSON string",
     )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
     """Main entry point for the TTS worker."""
+    import json
+
     configure_logging()
     args = parse_args(argv)
 
-    engine_config: dict[str, object] = {
-        "model_name": args.model_name,
-        "device": args.device,
-    }
+    engine_config: dict[str, object] = json.loads(args.engine_config)
 
     try:
         asyncio.run(

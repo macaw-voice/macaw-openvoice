@@ -1,4 +1,4 @@
-"""`macaw list` and `macaw inspect` commands — model management."""
+"""`macaw list`, `macaw inspect` and `macaw catalog` commands — model management."""
 
 from __future__ import annotations
 
@@ -117,3 +117,33 @@ async def _inspect(model_name: str, models_dir: str) -> None:
     click.echo(f"Capabilities:    {cap_str}")
     if manifest.description:
         click.echo(f"Description:     {manifest.description}")
+
+
+@cli.command()
+def catalog() -> None:
+    """List models available for download."""
+    from macaw.registry.catalog import ModelCatalog
+
+    cat = ModelCatalog()
+    try:
+        cat.load()
+    except (FileNotFoundError, ValueError) as e:
+        click.echo(f"Failed to load catalog: {e}", err=True)
+        sys.exit(1)
+
+    entries = cat.list_models()
+    if not entries:
+        click.echo("No models available in the catalog.")
+        return
+
+    name_w = max(len(e.name) for e in entries)
+    name_w = max(name_w, 4)  # min "NAME"
+
+    header = f"{'NAME':<{name_w}}  {'TYPE':<5}  {'ENGINE':<16}  {'DESCRIPTION'}"
+    click.echo(header)
+
+    for e in entries:
+        click.echo(f"{e.name:<{name_w}}  {e.model_type:<5}  {e.engine:<16}  {e.description}")
+
+    click.echo()
+    click.echo("Run 'macaw pull <name>' to download a model.")

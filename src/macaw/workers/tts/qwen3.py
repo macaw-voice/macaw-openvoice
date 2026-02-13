@@ -41,17 +41,18 @@ logger = get_logger("worker.tts.qwen3")
 # Valid variant names
 _VALID_VARIANTS = frozenset({"custom_voice", "base", "voice_design"})
 
-# Preset speakers for CustomVoice variant
+# Fallback preset speakers for CustomVoice variant.
+# Real speaker list is obtained at runtime via model.get_supported_speakers().
 _CUSTOM_VOICE_SPEAKERS: list[VoiceInfo] = [
-    VoiceInfo(voice_id="Chelsie", name="Chelsie", language="en", gender="female"),
-    VoiceInfo(voice_id="Aiden", name="Aiden", language="en", gender="male"),
-    VoiceInfo(voice_id="Aura", name="Aura", language="en", gender="female"),
-    VoiceInfo(voice_id="Ethan", name="Ethan", language="en", gender="male"),
-    VoiceInfo(voice_id="Aria", name="Aria", language="en", gender="female"),
-    VoiceInfo(voice_id="Vivian", name="Vivian", language="zh", gender="female"),
-    VoiceInfo(voice_id="Lucas", name="Lucas", language="zh", gender="male"),
-    VoiceInfo(voice_id="Bella", name="Bella", language="zh", gender="female"),
-    VoiceInfo(voice_id="Benjamin", name="Benjamin", language="zh", gender="male"),
+    VoiceInfo(voice_id="aiden", name="aiden", language="multi", gender="male"),
+    VoiceInfo(voice_id="dylan", name="dylan", language="multi", gender="male"),
+    VoiceInfo(voice_id="eric", name="eric", language="multi", gender="male"),
+    VoiceInfo(voice_id="ono_anna", name="ono_anna", language="multi", gender="female"),
+    VoiceInfo(voice_id="ryan", name="ryan", language="multi", gender="male"),
+    VoiceInfo(voice_id="serena", name="serena", language="multi", gender="female"),
+    VoiceInfo(voice_id="sohee", name="sohee", language="multi", gender="female"),
+    VoiceInfo(voice_id="uncle_fu", name="uncle_fu", language="multi", gender="male"),
+    VoiceInfo(voice_id="vivian", name="vivian", language="multi", gender="female"),
 ]
 
 
@@ -68,7 +69,7 @@ class Qwen3TTSBackend(TTSBackend):
         self._model: object | None = None
         self._model_path: str = ""
         self._variant: str = "custom_voice"
-        self._default_voice: str = "Chelsie"
+        self._default_voice: str = "vivian"
         self._default_language: str = "English"
         self._sample_rate: int = 24000
 

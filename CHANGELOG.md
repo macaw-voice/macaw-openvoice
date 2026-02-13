@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- CLI `macaw catalog` para listar modelos disponiveis para download no catalogo, com tabela formatada (NAME, TYPE, ENGINE, DESCRIPTION) (#catalog)
 - `macaw pull` instala automaticamente as dependencias da engine do modelo apos download — engines com extras opcionais (faster-whisper, kokoro, wenet, qwen3-tts) sao instaladas via pip sem intervencao manual (#pull)
 - Qwen3-TTS backend com suporte a CustomVoice (9 vozes preset), Base (voice cloning), e VoiceDesign (instrucao em linguagem natural) (#qwen3-tts)
 - 5 modelos Qwen3-TTS no catalogo: 0.6B/1.7B CustomVoice, 0.6B/1.7B Base, 1.7B VoiceDesign (#qwen3-tts)

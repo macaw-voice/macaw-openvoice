@@ -130,12 +130,21 @@ class TTSWorkerServicer(_BaseServicer):
             )
 
         except Exception as exc:
+            from macaw.exceptions import TTSSynthesisError
+
             logger.error(
                 "synthesize_error",
                 request_id=request_id,
                 error=str(exc),
             )
-            await context.abort(grpc.StatusCode.INTERNAL, str(exc))
+            # Client errors (bad input, missing ref_audio, etc.) → INVALID_ARGUMENT
+            # Server errors (OOM, unexpected) → INTERNAL
+            status = (
+                grpc.StatusCode.INVALID_ARGUMENT
+                if isinstance(exc, TTSSynthesisError)
+                else grpc.StatusCode.INTERNAL
+            )
+            await context.abort(status, str(exc))
             return  # pragma: no cover
 
         logger.info(

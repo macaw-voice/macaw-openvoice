@@ -177,6 +177,9 @@ async def _synthesize_via_grpc(
             raise WorkerTimeoutError(worker_id, _TTS_GRPC_TIMEOUT) from exc
         if code == grpc.StatusCode.UNAVAILABLE:
             raise WorkerUnavailableError("tts") from exc
+        if code == grpc.StatusCode.INVALID_ARGUMENT:
+            detail = exc.details() or "Synthesis failed"
+            raise InvalidRequestError(detail) from exc
         raise WorkerCrashError(worker_id) from exc
     finally:
         try:

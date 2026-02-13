@@ -34,7 +34,7 @@ def _make_mock_qwen3_model(
     mock_model.generate_custom_voice.return_value = ([audio], sample_rate)
     mock_model.generate_voice_clone.return_value = ([audio], sample_rate)
     mock_model.generate_voice_design.return_value = ([audio], sample_rate)
-    mock_model.get_supported_speakers.return_value = ["Chelsie", "Aiden", "Vivian"]
+    mock_model.get_supported_speakers.return_value = ["vivian", "Aiden", "Vivian"]
     mock_model.get_supported_languages.return_value = ["English", "Chinese"]
 
     return mock_model
@@ -211,7 +211,7 @@ class TestSynthesize:
         backend._model = mock_model
         backend._model_path = "/models/qwen3-tts"
         backend._variant = variant
-        backend._default_voice = "Chelsie"
+        backend._default_voice = "vivian"
         backend._default_language = "English"
         backend._sample_rate = 24000
         return backend
@@ -325,7 +325,7 @@ class TestSynthesize:
             pass
         backend._model.generate_custom_voice.assert_called_once()  # type: ignore[union-attr]
         call_kwargs = backend._model.generate_custom_voice.call_args  # type: ignore[union-attr]
-        assert call_kwargs[1]["speaker"] == "Chelsie"
+        assert call_kwargs[1]["speaker"] == "vivian"
 
     async def test_inference_error_raises_synthesis_error(self) -> None:
         backend = self._make_loaded_backend()
@@ -359,12 +359,12 @@ class TestVoices:
         backend = Qwen3TTSBackend()
         backend._variant = "custom_voice"
         mock_model = MagicMock()
-        mock_model.get_supported_speakers.return_value = ["Chelsie", "Aiden"]
+        mock_model.get_supported_speakers.return_value = ["vivian", "Aiden"]
         backend._model = mock_model
         result = await backend.voices()
         assert len(result) == 2
         assert all(isinstance(v, VoiceInfo) for v in result)
-        assert result[0].voice_id == "Chelsie"
+        assert result[0].voice_id == "vivian"
         assert result[1].voice_id == "Aiden"
 
     async def test_custom_voice_fallback_to_static_list(self) -> None:
@@ -374,8 +374,8 @@ class TestVoices:
         result = await backend.voices()
         assert len(result) == 9
         voice_ids = [v.voice_id for v in result]
-        assert "Chelsie" in voice_ids
-        assert "Vivian" in voice_ids
+        assert "vivian" in voice_ids
+        assert "aiden" in voice_ids
 
     async def test_base_returns_empty(self) -> None:
         backend = Qwen3TTSBackend()

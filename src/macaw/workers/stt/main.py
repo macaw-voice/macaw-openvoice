@@ -115,31 +115,22 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--model-path", type=str, required=True, help="Model path")
     parser.add_argument(
-        "--compute-type", type=str, default="float16", help="Compute type (default: float16)"
-    )
-    parser.add_argument(
-        "--device", type=str, default="auto", help="Device: auto, cpu, cuda (default: auto)"
-    )
-    parser.add_argument(
-        "--model-size", type=str, default="large-v3", help="Model size (default: large-v3)"
-    )
-    parser.add_argument(
-        "--beam-size", type=int, default=5, help="Beam size for decoding (default: 5)"
+        "--engine-config",
+        type=str,
+        default="{}",
+        help="Engine config as JSON string",
     )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
     """Main entry point for the STT worker."""
+    import json
+
     configure_logging()
     args = parse_args(argv)
 
-    engine_config: dict[str, object] = {
-        "model_size": args.model_size,
-        "compute_type": args.compute_type,
-        "device": args.device,
-        "beam_size": args.beam_size,
-    }
+    engine_config: dict[str, object] = json.loads(args.engine_config)
 
     try:
         asyncio.run(

@@ -76,8 +76,8 @@ class ModelManifest(BaseModel):
     @field_validator("name")
     @classmethod
     def name_must_be_valid(cls, v: str) -> str:
-        if not v or not v.replace("-", "").replace("_", "").isalnum():
-            msg = f"Invalid model name: '{v}'. Use only alphanumerics, hyphens, and underscores."
+        if not v or not v.replace("-", "").replace("_", "").replace(".", "").isalnum():
+            msg = f"Invalid model name: '{v}'. Use only alphanumerics, hyphens, underscores, and dots."
             raise ValueError(msg)
         return v
 

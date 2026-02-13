@@ -209,8 +209,11 @@ class TestWeNetParseArgs:
     """Worker CLI aceita --engine wenet."""
 
     def test_parse_args_wenet(self) -> None:
+        import json
+
         from macaw.workers.stt.main import parse_args
 
+        config = {"model_size": "wenet-ctc", "device": "cpu"}
         args = parse_args(
             [
                 "--port",
@@ -219,14 +222,15 @@ class TestWeNetParseArgs:
                 "wenet",
                 "--model-path",
                 "/models/wenet-ctc",
-                "--model-size",
-                "wenet-ctc",
+                "--engine-config",
+                json.dumps(config),
             ]
         )
         assert args.port == 50052
         assert args.engine == "wenet"
         assert args.model_path == "/models/wenet-ctc"
-        assert args.model_size == "wenet-ctc"
+        parsed = json.loads(args.engine_config)
+        assert parsed["model_size"] == "wenet-ctc"
 
     def test_parse_args_default_engine(self) -> None:
         from macaw.workers.stt.main import parse_args
