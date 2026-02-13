@@ -56,6 +56,25 @@ def _make_tts_result(
     )
 
 
+def _make_open_tts_stream_mock(
+    audio_data: bytes = b"\x00\x01" * 100,
+) -> AsyncMock:
+    """Create an AsyncMock for _open_tts_stream that returns a channel,
+    an empty async iterator, and the audio data as first chunk."""
+    mock_channel = AsyncMock()
+    mock_channel.close = AsyncMock()
+
+    # Empty async iterator (no more chunks after first_audio_chunk)
+    async def _empty_iter():
+        return
+        yield  # make it a generator
+
+    mock = AsyncMock(
+        return_value=(mock_channel, _empty_iter(), audio_data),
+    )
+    return mock
+
+
 # ─── SpeechRequest Model ───
 
 
@@ -240,14 +259,13 @@ class TestSpeechRoute:
     async def test_speech_returns_wav(self) -> None:
         registry = _make_mock_registry()
         manager = _make_mock_worker_manager()
-        tts_result = _make_tts_result()
+        audio_data = b"\x00\x01" * 100
 
         app = create_app(registry=registry, worker_manager=manager)
 
         with patch(
-            "macaw.server.routes.speech._synthesize_via_grpc",
-            new_callable=AsyncMock,
-            return_value=tts_result,
+            "macaw.server.routes.speech._open_tts_stream",
+            _make_open_tts_stream_mock(audio_data=audio_data),
         ):
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app),
@@ -260,21 +278,20 @@ class TestSpeechRoute:
 
         assert response.status_code == 200
         assert response.headers["content-type"] == "audio/wav"
-        # WAV starts with RIFF header
+        # WAV starts with RIFF header (44-byte header + audio data)
         assert response.content[:4] == b"RIFF"
+        assert response.content[44:] == audio_data
 
     async def test_speech_returns_pcm(self) -> None:
         registry = _make_mock_registry()
         manager = _make_mock_worker_manager()
         audio_data = b"\x00\x01" * 100
-        tts_result = _make_tts_result(audio_data=audio_data)
 
         app = create_app(registry=registry, worker_manager=manager)
 
         with patch(
-            "macaw.server.routes.speech._synthesize_via_grpc",
-            new_callable=AsyncMock,
-            return_value=tts_result,
+            "macaw.server.routes.speech._open_tts_stream",
+            _make_open_tts_stream_mock(audio_data=audio_data),
         ):
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app),
@@ -405,15 +422,11 @@ class TestSpeechRoute:
     async def test_speech_passes_voice_parameter(self) -> None:
         registry = _make_mock_registry()
         manager = _make_mock_worker_manager()
-        tts_result = _make_tts_result()
 
         app = create_app(registry=registry, worker_manager=manager)
 
-        with patch(
-            "macaw.server.routes.speech._synthesize_via_grpc",
-            new_callable=AsyncMock,
-            return_value=tts_result,
-        ) as mock_grpc:
+        mock = _make_open_tts_stream_mock()
+        with patch("macaw.server.routes.speech._open_tts_stream", mock):
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app),
                 base_url="http://test",
@@ -427,22 +440,19 @@ class TestSpeechRoute:
                     },
                 )
 
-        mock_grpc.assert_awaited_once()
-        call_kwargs = mock_grpc.call_args[1]
-        assert call_kwargs["voice"] == "alloy"
+        mock.assert_awaited_once()
+        call_kwargs = mock.call_args[1]
+        # Proto request is built upstream; voice is in the proto
+        assert call_kwargs["proto_request"].voice == "alloy"
 
     async def test_speech_passes_speed_parameter(self) -> None:
         registry = _make_mock_registry()
         manager = _make_mock_worker_manager()
-        tts_result = _make_tts_result()
 
         app = create_app(registry=registry, worker_manager=manager)
 
-        with patch(
-            "macaw.server.routes.speech._synthesize_via_grpc",
-            new_callable=AsyncMock,
-            return_value=tts_result,
-        ) as mock_grpc:
+        mock = _make_open_tts_stream_mock()
+        with patch("macaw.server.routes.speech._open_tts_stream", mock):
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app),
                 base_url="http://test",
@@ -457,8 +467,8 @@ class TestSpeechRoute:
                 )
 
         # Verify the proto request was built with the right speed
-        mock_grpc.assert_awaited_once()
-        call_kwargs = mock_grpc.call_args[1]
+        mock.assert_awaited_once()
+        call_kwargs = mock.call_args[1]
         assert "proto_request" in call_kwargs
         assert call_kwargs["proto_request"].speed == 1.5
 

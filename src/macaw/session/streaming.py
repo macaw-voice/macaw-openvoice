@@ -692,8 +692,12 @@ class StreamingSession:
             return
 
         # Converter float32 [-1.0, 1.0] -> int16 bytes
-        pcm_int16 = (frame * 32767.0).clip(-32768, 32767).astype(np.int16)
-        pcm_bytes = pcm_int16.tobytes()
+        # In-place multiply+clip avoids 2 intermediate allocations per frame.
+        # Safe: frame is not used after this method (VAD already processed it,
+        # preprocessor creates a new array each call).
+        np.multiply(frame, 32767.0, out=frame)
+        np.clip(frame, -32768, 32767, out=frame)
+        pcm_bytes = frame.astype(np.int16).tobytes()
 
         # Escrever no ring buffer (antes de enviar ao worker, para garantir
         # que os dados estao no buffer mesmo se o worker crashar).

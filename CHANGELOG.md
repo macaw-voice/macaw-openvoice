@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `GET /health` reportava `status: "ok"` antes dos workers gRPC estarem prontos, causando race condition onde requests TTS falhavam com 503 logo após o servidor iniciar — agora retorna `status: "loading"` enquanto workers estão iniciando e `status: "degraded"` se algum crashou (#health)
 
 ### Changed
+- `POST /v1/audio/speech` agora usa `StreamingResponse` — audio chunks são enviados ao cliente conforme chegam do gRPC worker, reduzindo TTFB significativamente (#perf)
+- TTS gRPC channel é reutilizado entre chamadas `tts.speak` na mesma conexão WebSocket — elimina overhead de TCP+HTTP/2 handshake (~5-20ms por request) (#perf)
+- Float32→int16 conversion no audio pipeline usa operações NumPy in-place (`np.multiply(out=)`, `np.clip(out=)`) — reduz alocações de 4 para 2 por frame no hot path (#perf)
+- gRPC streaming channel inclui `grpc.http2.max_pings_without_data=0` — previne morte silenciosa de conexão durante períodos de mute-on-speak (#perf)
+- `LatencyTracker.cleanup()` é chamado periodicamente pelo Scheduler dispatch loop (a cada 30s) — previne memory leak em requests que nunca completam (#perf)
+- KokoroBackend `synthesize()` agora usa true streaming via `asyncio.Queue` — cada segmento do KPipeline é convertido para PCM e yielded imediatamente, reduzindo TTFB de tempo-total-de-síntese para tempo-do-primeiro-segmento (#perf)
+- Int16→float32 conversion no `StreamingPreprocessor` usa divisão in-place (`/=`) — elimina 1 array temporário por frame no hot path STT (#perf)
+- `EnergyPreFilter.is_silence()` usa `np.dot()` para RMS e operações in-place para spectral flatness — elimina 3 arrays temporários por frame no pre-filter VAD (#perf)
 - `fastapi`, `uvicorn`, `python-multipart` e `huggingface_hub` movidos de extras opcionais para dependências base — `pip install macaw-openvoice` agora inclui tudo necessário para `macaw serve` funcionar (#deps)
 - TTSBackend.synthesize() agora aceita `options: dict` opcional para params engine-specific (#qwen3-tts)
 - Docusaurus config prepared for custom domain migration to `docs.usemacaw.io` (#docs)

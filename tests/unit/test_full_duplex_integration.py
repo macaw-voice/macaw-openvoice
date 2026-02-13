@@ -90,6 +90,7 @@ async def _run_tts_speak(
                 model_tts=model_tts,
                 send_event=send_event,
                 cancel_event=cancel,
+                tts_channel_ref=[None],
             )
 
 
@@ -374,6 +375,7 @@ class TestFullDuplexErrorRecovery:
             model_tts="kokoro-v1",
             send_event=send_event2,
             cancel_event=cancel2,
+            tts_channel_ref=[None],
         )
         assert session.is_muted is False
 
@@ -541,6 +543,7 @@ class TestFullDuplexEdgeCases:
             model_tts="kokoro-v1",
             send_event=send_event,
             cancel_event=cancel,
+            tts_channel_ref=[None],
         )
 
         assert session.is_muted is False

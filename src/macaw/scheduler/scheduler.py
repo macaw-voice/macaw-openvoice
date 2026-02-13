@@ -60,6 +60,9 @@ _TIMEOUT_FACTOR = 2.0
 # Backoff when no worker is available (seconds)
 _NO_WORKER_BACKOFF_S = 0.1
 
+# Interval for LatencyTracker cleanup (seconds)
+_LATENCY_CLEANUP_INTERVAL_S = 30.0
+
 # Timeout for graceful shutdown (seconds)
 _SHUTDOWN_TIMEOUT_S = 10.0
 
@@ -353,8 +356,19 @@ class Scheduler:
         Runs as a background task until ``stop()`` is called.
         """
         logger.info("dispatch_loop_started")
+        last_cleanup = time.monotonic()
         try:
             while self._running:
+                # Periodic LatencyTracker cleanup to prevent memory leaks
+                # from requests that never complete (e.g., worker crash
+                # without cancel propagation).
+                now = time.monotonic()
+                if now - last_cleanup >= _LATENCY_CLEANUP_INTERVAL_S:
+                    removed = self._latency.cleanup()
+                    if removed > 0:
+                        logger.debug("latency_periodic_cleanup", removed=removed)
+                    last_cleanup = now
+
                 try:
                     scheduled = await asyncio.wait_for(
                         self._queue.dequeue(),

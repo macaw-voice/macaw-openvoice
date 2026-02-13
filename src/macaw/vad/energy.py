@@ -66,18 +66,20 @@ class EnergyPreFilter:
         if len(frame) < _MIN_SAMPLES_FOR_FFT:
             return True
 
-        rms = np.sqrt(np.mean(frame**2))
+        # np.dot returns scalar (sum of squares) without allocating frame**2.
+        rms = np.sqrt(np.dot(frame, frame) / len(frame))
         rms_dbfs = 20.0 * np.log10(rms + _EPSILON)
 
         if rms_dbfs >= self._energy_threshold_dbfs:
             return False
 
         magnitude = np.abs(np.fft.rfft(frame))
-        magnitude = np.maximum(magnitude, _EPSILON)
+        np.maximum(magnitude, _EPSILON, out=magnitude)
 
-        log_magnitude = np.log(magnitude)
-        geometric_mean = np.exp(np.mean(log_magnitude))
+        # Compute arithmetic mean before in-place log overwrites magnitude.
         arithmetic_mean = np.mean(magnitude)
+        np.log(magnitude, out=magnitude)
+        geometric_mean = np.exp(np.mean(magnitude))
 
         spectral_flatness = geometric_mean / arithmetic_mean
 

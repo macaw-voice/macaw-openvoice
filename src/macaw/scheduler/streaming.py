@@ -33,6 +33,9 @@ _GRPC_STREAMING_CHANNEL_OPTIONS = [
     ("grpc.keepalive_timeout_ms", 5_000),
     ("grpc.keepalive_permit_without_calls", 1),
     ("grpc.http2.min_recv_ping_interval_without_data_ms", 5_000),
+    # Allow unlimited keepalive pings without data to prevent silent
+    # connection death during mute-on-speak (no frames sent while TTS active).
+    ("grpc.http2.max_pings_without_data", 0),
 ]
 
 

@@ -262,6 +262,7 @@ async def _tts_speak_task(
     model_tts: str | None,
     send_event: Callable[[ServerEvent], Awaitable[None]],
     cancel_event: asyncio.Event,
+    tts_channel_ref: list[tuple[str, grpc.aio.Channel] | None],
     language: str | None = None,
     ref_audio: str | None = None,
     ref_text: str | None = None,
@@ -273,7 +274,7 @@ async def _tts_speak_task(
         1. Resolve modelo TTS via registry
         2. Resolve worker TTS via WorkerManager
         3. Mute STT (antes de enviar primeiro byte)
-        4. Abre gRPC Synthesize stream
+        4. Abre gRPC Synthesize stream (reuses channel via tts_channel_ref)
         5. Envia chunks como binary frames ao WebSocket
         6. Emite tts.speaking_start / tts.speaking_end
         7. Unmute STT em finally (garante unmute mesmo em erro/cancel)
@@ -288,6 +289,10 @@ async def _tts_speak_task(
         model_tts: Nome do modelo TTS (None usa default do registry).
         send_event: Callback para enviar eventos ao cliente.
         cancel_event: Event para sinalizar cancelamento externo.
+        tts_channel_ref: Mutable ref for TTS gRPC channel reuse.
+            Format: [(worker_address, channel)] or [None].
+            Channel is reused across tts.speak calls to avoid TCP+HTTP/2
+            handshake overhead (~5-20ms per request).
         language: Target language for LLM-based TTS.
         ref_audio: Base64-encoded reference audio for voice cloning.
         ref_text: Reference transcript for voice cloning.
@@ -298,7 +303,6 @@ async def _tts_speak_task(
     tts_start = time.monotonic()
     cancelled = False
     first_chunk_sent = False
-    channel = None
 
     try:
         # 1. Resolve modelo TTS
@@ -392,12 +396,21 @@ async def _tts_speak_task(
             instruction=instruction,
         )
 
-        # 4. Open gRPC stream
+        # 4. Open gRPC stream (reuse channel if same worker address)
         worker_address = f"localhost:{worker.port}"
-        channel = grpc.aio.insecure_channel(
-            worker_address,
-            options=_TTS_GRPC_CHANNEL_OPTIONS,
-        )
+        cached = tts_channel_ref[0]
+        if cached is not None and cached[0] == worker_address:
+            channel = cached[1]
+        else:
+            # Close old channel if worker address changed
+            if cached is not None:
+                with contextlib.suppress(Exception):
+                    await cached[1].close()
+            channel = grpc.aio.insecure_channel(
+                worker_address,
+                options=_TTS_GRPC_CHANNEL_OPTIONS,
+            )
+            tts_channel_ref[0] = (worker_address, channel)
         stub = TTSWorkerStub(channel)  # type: ignore[no-untyped-call]
         response_stream = stub.Synthesize(proto_request, timeout=_TTS_GRPC_TIMEOUT)
 
@@ -501,9 +514,8 @@ async def _tts_speak_task(
             else:
                 tts_requests_total.labels(status="error").inc()
 
-        if channel is not None:
-            with contextlib.suppress(Exception):
-                await channel.close()
+        # Channel is NOT closed here — it's reused across tts.speak calls
+        # and closed by realtime_endpoint's finally block.
 
         logger.debug(
             "tts_task_done",
@@ -640,10 +652,11 @@ async def realtime_endpoint(
 
     backpressure = BackpressureController()
 
-    # TTS full-duplex: referencia mutavel para task e cancel event
+    # TTS full-duplex: referencia mutavel para task, cancel event, and channel
     model_tts: str | None = None
     tts_task_ref: list[asyncio.Task[None] | None] = [None]
     tts_cancel_ref: list[asyncio.Event | None] = [None]
+    tts_channel_ref: list[tuple[str, grpc.aio.Channel] | None] = [None]
 
     monitor_task = asyncio.create_task(
         _inactivity_monitor(
@@ -756,6 +769,7 @@ async def realtime_endpoint(
                             model_tts=model_tts,
                             send_event=_on_session_event,
                             cancel_event=cancel_ev,
+                            tts_channel_ref=tts_channel_ref,
                             language=cmd.language,
                             ref_audio=cmd.ref_audio,
                             ref_text=cmd.ref_text,
@@ -830,6 +844,13 @@ async def realtime_endpoint(
     finally:
         # Cancelar TTS ativa antes de fechar session
         await _cancel_active_tts(tts_task_ref, tts_cancel_ref)
+
+        # Close reusable TTS gRPC channel
+        cached_channel = tts_channel_ref[0]
+        if cached_channel is not None:
+            with contextlib.suppress(Exception):
+                await cached_channel[1].close()
+            tts_channel_ref[0] = None
 
         # Fechar StreamingSession se ativa
         if session is not None and not session.is_closed:

@@ -81,7 +81,9 @@ class StreamingPreprocessor:
 
         # Converter PCM int16 bytes -> numpy float32 normalizado [-1.0, 1.0]
         int16_array = np.frombuffer(raw_bytes, dtype=np.int16)
-        audio = int16_array.astype(np.float32) / 32768.0
+        # In-place division avoids a temporary float32 array per frame.
+        audio = int16_array.astype(np.float32)
+        audio /= 32768.0
 
         sample_rate = self._input_sample_rate
 

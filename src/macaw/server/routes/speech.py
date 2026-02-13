@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import io
 import struct
 import uuid
@@ -10,7 +11,7 @@ from typing import TYPE_CHECKING
 
 import grpc.aio
 from fastapi import APIRouter, Depends
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 
 from macaw._types import ModelType
 from macaw.exceptions import (
@@ -23,13 +24,14 @@ from macaw.exceptions import (
 from macaw.logging import get_logger
 from macaw.proto.tts_worker_pb2_grpc import TTSWorkerStub
 from macaw.registry.registry import ModelRegistry  # noqa: TC001
-from macaw.scheduler.tts_converters import build_tts_proto_request, tts_proto_chunks_to_result
+from macaw.scheduler.tts_converters import build_tts_proto_request
 from macaw.server.dependencies import get_registry, get_worker_manager
 from macaw.server.models.speech import SpeechRequest  # noqa: TC001
 from macaw.workers.manager import WorkerManager  # noqa: TC001
 
 if TYPE_CHECKING:
-    from macaw._types import TTSSpeechResult
+    from collections.abc import AsyncIterator
+
     from macaw.proto.tts_worker_pb2 import SynthesizeRequest
 
 router = APIRouter()
@@ -62,6 +64,10 @@ async def create_speech(
 
     Compatible with OpenAI Audio API POST /v1/audio/speech.
     Returns binary audio in the body (not JSON).
+
+    Uses StreamingResponse to reduce TTFB: audio chunks are sent
+    to the client as they arrive from the TTS worker, instead of
+    accumulating all chunks before responding.
     """
     request_id = str(uuid.uuid4())
 
@@ -116,62 +122,69 @@ async def create_speech(
         instruction=body.instruction,
     )
 
-    # Send to TTS worker via gRPC (server-streaming)
-    result = await _synthesize_via_grpc(
-        worker_address=f"localhost:{worker.port}",
+    worker_address = f"localhost:{worker.port}"
+
+    # Pre-flight: open gRPC stream and fetch first audio chunk.
+    # This validates the connection and request params BEFORE starting
+    # the StreamingResponse (so we can still return proper HTTP errors).
+    channel, response_stream, first_audio_chunk = await _open_tts_stream(
+        worker_address=worker_address,
         proto_request=proto_request,
-        voice=body.voice,
         worker_id=worker.worker_id,
     )
 
-    logger.info(
-        "speech_done",
-        request_id=request_id,
-        audio_bytes=len(result.audio_data),
-        duration=result.duration,
+    # Stream response — TTFB is now time-to-first-gRPC-chunk instead of
+    # total synthesis time.
+    is_wav = body.response_format == "wav"
+    media_type = "audio/wav" if is_wav else "audio/pcm"
+    return StreamingResponse(
+        _stream_tts_audio(
+            channel=channel,
+            response_stream=response_stream,
+            first_audio_chunk=first_audio_chunk,
+            is_wav=is_wav,
+            sample_rate=_DEFAULT_SAMPLE_RATE,
+            request_id=request_id,
+        ),
+        media_type=media_type,
     )
 
-    # Format response
-    if body.response_format == "wav":
-        audio_bytes = _pcm_to_wav(result.audio_data, result.sample_rate)
-        return Response(content=audio_bytes, media_type="audio/wav")
 
-    # PCM raw
-    return Response(content=result.audio_data, media_type="audio/pcm")
-
-
-async def _synthesize_via_grpc(
+async def _open_tts_stream(
     *,
     worker_address: str,
     proto_request: SynthesizeRequest,
-    voice: str,
     worker_id: str,
-) -> TTSSpeechResult:
-    """Send TTS request to the worker via gRPC and collect audio chunks."""
+) -> tuple[grpc.aio.Channel, object, bytes]:
+    """Open gRPC stream and fetch first audio chunk (pre-flight validation).
+
+    Returns the channel, the response stream iterator, and the first audio bytes.
+    The caller is responsible for closing the channel when done (via the generator).
+
+    Raises domain exceptions on gRPC errors so the HTTP layer can return
+    proper status codes before the StreamingResponse starts.
+    """
     channel = grpc.aio.insecure_channel(worker_address, options=_GRPC_CHANNEL_OPTIONS)
     try:
         stub = TTSWorkerStub(channel)  # type: ignore[no-untyped-call]
-
-        chunks: list[bytes] = []
-        total_duration = 0.0
-
         response_stream = stub.Synthesize(proto_request, timeout=_TTS_GRPC_TIMEOUT)
 
+        # Read chunks until we get one with audio_data (pre-flight)
+        first_audio_chunk = b""
         async for chunk in response_stream:
             if chunk.audio_data:
-                chunks.append(chunk.audio_data)
-            total_duration = chunk.duration
+                first_audio_chunk = chunk.audio_data
+                break
             if chunk.is_last:
                 break
 
-        return tts_proto_chunks_to_result(
-            chunks,
-            sample_rate=_DEFAULT_SAMPLE_RATE,
-            voice=voice,
-            total_duration=total_duration,
-        )
+        return channel, response_stream, first_audio_chunk
 
     except grpc.aio.AioRpcError as exc:
+        try:
+            await channel.close()
+        except Exception:
+            logger.warning("tts_channel_close_error", worker_address=worker_address)
         code = exc.code()
         if code == grpc.StatusCode.DEADLINE_EXCEEDED:
             raise WorkerTimeoutError(worker_id, _TTS_GRPC_TIMEOUT) from exc
@@ -181,15 +194,104 @@ async def _synthesize_via_grpc(
             detail = exc.details() or "Synthesis failed"
             raise InvalidRequestError(detail) from exc
         raise WorkerCrashError(worker_id) from exc
+
+
+async def _stream_tts_audio(
+    *,
+    channel: grpc.aio.Channel,
+    response_stream: object,
+    first_audio_chunk: bytes,
+    is_wav: bool,
+    sample_rate: int,
+    request_id: str,
+) -> AsyncIterator[bytes]:
+    """Async generator that yields TTS audio chunks for StreamingResponse.
+
+    For WAV format: yields a WAV header (with max data size placeholder)
+    followed by raw PCM chunks. For PCM format: yields raw PCM directly.
+    Closes the gRPC channel when done.
+    """
+    total_audio_bytes = 0
+    try:
+        # WAV header with streaming-compatible max size placeholder
+        if is_wav:
+            yield _wav_streaming_header(sample_rate)
+
+        # Yield pre-fetched first chunk
+        if first_audio_chunk:
+            total_audio_bytes += len(first_audio_chunk)
+            yield first_audio_chunk
+
+        # Stream remaining chunks
+        async for chunk in response_stream:  # type: ignore[union-attr]
+            if chunk.audio_data:
+                total_audio_bytes += len(chunk.audio_data)
+                yield chunk.audio_data
+            if chunk.is_last:
+                break
+
+        logger.info(
+            "speech_done",
+            request_id=request_id,
+            audio_bytes=total_audio_bytes,
+        )
+
+    except grpc.aio.AioRpcError as exc:
+        # Error after streaming started — can't change HTTP status.
+        # Log and let the client detect truncation.
+        logger.error(
+            "tts_stream_error_mid_response",
+            request_id=request_id,
+            grpc_code=str(exc.code()),
+            audio_bytes_sent=total_audio_bytes,
+        )
+    except Exception:
+        logger.exception(
+            "tts_stream_unexpected_error",
+            request_id=request_id,
+            audio_bytes_sent=total_audio_bytes,
+        )
     finally:
-        try:
+        with contextlib.suppress(Exception):
             await channel.close()
-        except Exception:
-            logger.warning("tts_channel_close_error", worker_address=worker_address)
+
+
+def _wav_streaming_header(sample_rate: int) -> bytes:
+    """Build a WAV header for streaming (unknown total size).
+
+    Uses 0x7FFFFFFF as data_size — a well-known convention for
+    streaming WAV that most audio players handle correctly.
+    """
+    num_channels = 1
+    bits_per_sample = 16
+    byte_rate = sample_rate * num_channels * bits_per_sample // 8
+    block_align = num_channels * bits_per_sample // 8
+    # Max size placeholder for streaming
+    data_size = 0x7FFFFFFF
+
+    buf = io.BytesIO()
+    # RIFF header
+    buf.write(b"RIFF")
+    buf.write(struct.pack("<I", 36 + data_size))
+    buf.write(b"WAVE")
+    # fmt subchunk
+    buf.write(b"fmt ")
+    buf.write(struct.pack("<I", 16))
+    buf.write(struct.pack("<H", 1))  # PCM format
+    buf.write(struct.pack("<H", num_channels))
+    buf.write(struct.pack("<I", sample_rate))
+    buf.write(struct.pack("<I", byte_rate))
+    buf.write(struct.pack("<H", block_align))
+    buf.write(struct.pack("<H", bits_per_sample))
+    # data subchunk
+    buf.write(b"data")
+    buf.write(struct.pack("<I", data_size))
+
+    return buf.getvalue()
 
 
 def _pcm_to_wav(pcm_data: bytes, sample_rate: int) -> bytes:
-    """Convert 16-bit mono PCM audio to WAV format."""
+    """Convert 16-bit mono PCM audio to WAV format with exact size."""
     num_channels = 1
     bits_per_sample = 16
     byte_rate = sample_rate * num_channels * bits_per_sample // 8

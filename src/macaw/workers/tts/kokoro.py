@@ -127,6 +127,10 @@ class KokoroBackend(TTSBackend):
     ) -> AsyncIterator[bytes]:
         """Synthesize text into audio, returning 16-bit PCM chunks.
 
+        Streams segments as they are produced by KPipeline — each segment
+        is converted to PCM and yielded immediately, so TTFB equals the
+        time to produce the first segment (not total synthesis time).
+
         Args:
             text: Text to synthesize.
             voice: Voice identifier or "default".
@@ -154,28 +158,42 @@ class KokoroBackend(TTSBackend):
         )
 
         loop = asyncio.get_running_loop()
-        try:
-            audio_data = await loop.run_in_executor(
-                None,
-                lambda: _synthesize_with_pipeline(
-                    self._pipeline,
-                    text,
-                    voice_path,
-                    speed,
-                ),
-            )
-        except TTSSynthesisError:
-            raise
-        except Exception as exc:
+        queue: asyncio.Queue[bytes | None] = asyncio.Queue()
+        error_holder: list[Exception | None] = [None]
+
+        future = loop.run_in_executor(
+            None,
+            lambda: _stream_pipeline_segments(
+                self._pipeline,
+                text,
+                voice_path,
+                speed,
+                queue,
+                loop,
+                error_holder,
+            ),
+        )
+
+        has_audio = False
+        while True:
+            pcm_bytes = await queue.get()
+            if pcm_bytes is None:
+                break
+            has_audio = True
+            for i in range(0, len(pcm_bytes), CHUNK_SIZE_BYTES):
+                yield pcm_bytes[i : i + CHUNK_SIZE_BYTES]
+
+        await future
+
+        if error_holder[0] is not None:
+            exc = error_holder[0]
+            if isinstance(exc, TTSSynthesisError):
+                raise exc
             raise TTSSynthesisError(self._model_path, str(exc)) from exc
 
-        if len(audio_data) == 0:
+        if not has_audio:
             msg = "Sintese retornou audio vazio"
             raise TTSSynthesisError(self._model_path, msg)
-
-        # Yield in chunks for streaming
-        for i in range(0, len(audio_data), CHUNK_SIZE_BYTES):
-            yield audio_data[i : i + CHUNK_SIZE_BYTES]
 
     async def voices(self) -> list[VoiceInfo]:
         if not self._voices_dir or not os.path.isdir(self._voices_dir):
@@ -309,43 +327,42 @@ def _resolve_voice_path(
     return voice
 
 
-def _synthesize_with_pipeline(
+def _stream_pipeline_segments(
     pipeline: object,
     text: str,
     voice_path: str,
     speed: float,
-) -> bytes:
-    """Synthesize text using Kokoro KPipeline (blocking).
+    queue: asyncio.Queue[bytes | None],
+    loop: asyncio.AbstractEventLoop,
+    error_holder: list[Exception | None],
+) -> None:
+    """Stream KPipeline segments to an asyncio.Queue (blocking, runs in executor).
 
-    KPipeline returns a generator of tuples (graphemes, phonemes, audio).
-    We concatenate all audio arrays and convert to 16-bit PCM.
+    Each pipeline segment is converted to PCM immediately and enqueued via
+    call_soon_threadsafe, enabling true streaming — the async consumer yields
+    audio as segments are produced instead of waiting for all synthesis to
+    complete. TTFB = time-to-first-segment, not total synthesis time.
 
     Args:
         pipeline: KPipeline instance.
         text: Text to synthesize.
         voice_path: Path to the .pt voice file.
         speed: Synthesis speed.
-
-    Returns:
-        16-bit PCM audio as bytes.
-
-    Raises:
-        TTSSynthesisError: If no audio is produced.
+        queue: asyncio.Queue to push PCM bytes into. None sentinel signals end.
+        loop: Event loop for call_soon_threadsafe.
+        error_holder: Mutable list to store any exception from the pipeline.
     """
-    audio_arrays: list[np.ndarray] = []
-
-    for _gs, _ps, audio in pipeline(text, voice=voice_path, speed=speed):  # type: ignore[operator]
-        if audio is not None and len(audio) > 0:
-            # Kokoro v0.9.4 returns torch.Tensor, convert to numpy
-            arr = audio.numpy() if hasattr(audio, "numpy") else np.asarray(audio)
-            audio_arrays.append(arr)
-
-    if not audio_arrays:
-        msg = "Sintese retornou audio vazio"
-        raise TTSSynthesisError("kokoro", msg)
-
-    combined = np.concatenate(audio_arrays)
-    return float32_to_pcm16_bytes(combined)
+    try:
+        for _gs, _ps, audio in pipeline(text, voice=voice_path, speed=speed):  # type: ignore[operator]
+            if audio is not None and len(audio) > 0:
+                # Kokoro v0.9.4 returns torch.Tensor, convert to numpy
+                arr = audio.numpy() if hasattr(audio, "numpy") else np.asarray(audio)
+                pcm_bytes = float32_to_pcm16_bytes(arr)
+                loop.call_soon_threadsafe(queue.put_nowait, pcm_bytes)
+    except Exception as exc:
+        error_holder[0] = exc
+    finally:
+        loop.call_soon_threadsafe(queue.put_nowait, None)
 
 
 def _scan_voices_dir(voices_dir: str) -> list[VoiceInfo]:
