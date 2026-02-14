@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ListVoices` RPC in TTS worker proto with `VoiceInfoProto` message type (#voices)
 - ADR-001: Voice Persistence Architecture — filesystem-based VoiceStore at API layer (#adrs)
 - ADR-002: Audio Watermarking for Voice Cloning — proposed design, deferred implementation (#adrs)
+- `demo_voice_cloning.py` — Gradio web demo for voice cloning interativo com Qwen3-TTS-0.6B-Base: upload/gravacao de audio de referencia, selecao de idioma, sintese com voz clonada (#demo)
 - Endpoint HTTP `GET /v1/realtime` retorna 426 Upgrade Required com documentação completa do protocolo WebSocket no Swagger UI — conexão, comandos, eventos, full-duplex e exemplos JSON (#docs)
 - CLI `macaw catalog` para listar modelos disponiveis para download no catalogo, com tabela formatada (NAME, TYPE, ENGINE, DESCRIPTION) (#catalog)
 - `macaw pull` instala automaticamente as dependencias da engine do modelo apos download — engines com extras opcionais (faster-whisper, kokoro, qwen3-tts) sao instaladas via pip sem intervencao manual (#pull)
@@ -31,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Qwen3-TTS voice cloning falhava com `TypeError: Unsupported audio input type: <class 'bytes'>` — `ref_audio` bytes (WAV) agora são decodificados para `(np.ndarray, sample_rate)` antes de passar ao modelo, compatível com a API `qwen_tts` (#voice-cloning)
+- `src/uvicorn.py` (test shim) sombreava o pacote real `uvicorn` quando `PYTHONPATH=src`, causando `ModuleNotFoundError: No module named 'uvicorn.config'` — movido para `tests/uvicorn_shim.py` (#dev)
 - WebSocket `/v1/realtime` não processava áudio — `StreamingGRPCClient` nunca era instanciado durante `macaw serve`, fazendo com que todas as sessões streaming descartassem frames silenciosamente. Agora o cliente gRPC streaming é criado e conectado ao worker STT no startup (#streaming)
 - Workers gRPC (STT e TTS) rejeitavam keepalive pings do runtime com `GOAWAY ENHANCE_YOUR_CALM` — servidores gRPC agora aceitam pings a cada 5s, compatível com o intervalo de 10s do cliente streaming (#streaming)
 - Silero VAD exibia mensagem de erro enganosa "requires torch" quando `torchaudio` estava ausente — agora diferencia a falta de `torch` da falta de dependências do Silero e mostra a mensagem correta (#vad)
