@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from macaw.preprocessing.pipeline import AudioPreprocessingPipeline
     from macaw.registry.registry import ModelRegistry
     from macaw.scheduler.scheduler import Scheduler
+    from macaw.server.voice_store import VoiceStore
     from macaw.workers.manager import WorkerManager
 
 
@@ -46,6 +47,11 @@ def get_scheduler(request: Request) -> Scheduler:
     if scheduler is None:
         raise RuntimeError("Scheduler nao configurado. Passe scheduler= em create_app().")
     return scheduler  # type: ignore[no-any-return]
+
+
+def get_voice_store(request: Request) -> VoiceStore | None:
+    """Retorna o VoiceStore do app state, ou None se nao configurado."""
+    return request.app.state.voice_store  # type: ignore[no-any-return]
 
 
 def get_worker_manager(request: Request) -> WorkerManager:

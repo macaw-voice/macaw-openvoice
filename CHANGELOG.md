@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Endpoint `GET /v1/voices` listing available TTS voices from loaded workers via gRPC ListVoices RPC, aggregated across all TTS models (#voices)
+- Endpoint `POST /v1/voices` for creating saved voices (cloned with ref_audio upload or designed with instruction text) via multipart/form-data (#voices)
+- Endpoint `GET /v1/voices/{id}` for retrieving saved voice details (#voices)
+- Endpoint `DELETE /v1/voices/{id}` for removing saved voices (#voices)
+- `VoiceStore` ABC with `FileSystemVoiceStore` implementation for persisting cloned and designed voices on disk (#voices)
+- `VoiceNotFoundError` exception mapped to HTTP 404 in error handlers (#voices)
+- Saved voice resolution in `POST /v1/audio/speech` — voices prefixed with `voice_` are looked up from VoiceStore and their params (ref_audio, ref_text, instruction) injected into the request (#voices)
+- `ListVoices` RPC in TTS worker proto with `VoiceInfoProto` message type (#voices)
+- ADR-001: Voice Persistence Architecture — filesystem-based VoiceStore at API layer (#adrs)
+- ADR-002: Audio Watermarking for Voice Cloning — proposed design, deferred implementation (#adrs)
 - Endpoint HTTP `GET /v1/realtime` retorna 426 Upgrade Required com documentação completa do protocolo WebSocket no Swagger UI — conexão, comandos, eventos, full-duplex e exemplos JSON (#docs)
 - CLI `macaw catalog` para listar modelos disponiveis para download no catalogo, com tabela formatada (NAME, TYPE, ENGINE, DESCRIPTION) (#catalog)
 - `macaw pull` instala automaticamente as dependencias da engine do modelo apos download — engines com extras opcionais (faster-whisper, kokoro, qwen3-tts) sao instaladas via pip sem intervencao manual (#pull)

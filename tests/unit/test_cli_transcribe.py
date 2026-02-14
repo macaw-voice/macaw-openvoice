@@ -188,9 +188,7 @@ class TestTranscribeCommand:
         assert parsed["segments"] is not None
 
     @patch("httpx.post")
-    def test_transcribe_json_outputs_text_only(
-        self, mock_post: MagicMock, tmp_path: Path
-    ) -> None:
+    def test_transcribe_json_outputs_text_only(self, mock_post: MagicMock, tmp_path: Path) -> None:
         import pathlib
 
         audio_file = pathlib.Path(str(tmp_path)) / "audio.wav"

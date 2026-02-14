@@ -212,7 +212,9 @@ async def _serve(
 
     # 3.5 Wire StreamingGRPCClient for WebSocket /v1/realtime
     stt_worker = worker_manager.get_ready_worker(stt_models[0].name) if stt_models else None
-    stt_worker_port = stt_worker.port if stt_worker else (DEFAULT_WORKER_BASE_PORT if stt_models else None)
+    stt_worker_port = (
+        stt_worker.port if stt_worker else (DEFAULT_WORKER_BASE_PORT if stt_models else None)
+    )
     if stt_worker_port is not None:
         from macaw.scheduler.streaming import StreamingGRPCClient
 

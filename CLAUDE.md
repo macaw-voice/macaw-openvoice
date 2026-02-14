@@ -1,8 +1,8 @@
 # Macaw OpenVoice
 
-Runtime unificado de voz (STT + TTS) construido do zero em Python. Orquestra engines de inferencia (Faster-Whisper, Silero VAD, Kokoro, Piper) com API OpenAI-compatible.
+Runtime unificado de voz (STT + TTS) construido do zero em Python. Orquestra engines de inferencia (Faster-Whisper, Silero VAD, Kokoro, Qwen3-TTS) com API OpenAI-compatible.
 
-**Status: M9 (Full-Duplex) completo. Todas as fases do PRD entregues.** M1-M9 completos. 1600 testes passando. Runtime unificado STT+TTS funcional.
+**Status: M9 (Full-Duplex) completo. Todas as fases do PRD entregues.** M1-M9 completos. 1700+ testes passando. Runtime unificado STT+TTS funcional.
 
 ## Commands
 
@@ -25,12 +25,13 @@ make proto              # generate protobuf stubs
 ```
 src/macaw/
 ├── server/           # FastAPI — endpoints REST + WebSocket
-│   └── routes/       # transcriptions, translations, speech, health, realtime
+│   ├── routes/       # transcriptions, translations, speech, voices, health, realtime
+│   └── voice_store.py # Voice persistence (VoiceStore ABC + FileSystemVoiceStore)
 ├── scheduler/        # Async priority queue, cancellation, batching, latency tracking, TTS converters, metrics
 ├── registry/         # Model Registry (macaw.yaml, lifecycle)
 ├── workers/          # Subprocess gRPC management
 │   ├── stt/          # STTBackend interface + FasterWhisperBackend
-│   └── tts/          # TTSBackend interface + KokoroBackend
+│   └── tts/          # TTSBackend interface + KokoroBackend + Qwen3TTSBackend
 ├── preprocessing/    # Audio pipeline (resample, DC remove, gain normalize)
 ├── postprocessing/   # Text pipeline (ITN via NeMo, fail-open)
 ├── vad/              # Voice Activity Detection (energy pre-filter + Silero)
@@ -56,7 +57,7 @@ PRD: @docs/PRD.md
 - **TTS e stateless por request.** Nao reusar Session Manager para TTS. Cada `tts.speak` e independente.
 - **TTSBackend espelha STTBackend.** `synthesize()` retorna `AsyncIterator[bytes]` para streaming com baixo TTFB.
 
-ADRs completos: @docs/PRD.md (secao "Architecture Decision Records")
+ADRs completos: @docs/PRD.md (secao "Architecture Decision Records") + @docs/adrs/
 Como adicionar nova engine: @docs/ADDING_ENGINE.md
 
 ## Code Style
@@ -108,6 +109,9 @@ Como adicionar nova engine: @docs/ADDING_ENGINE.md
 - **TTS worker e subprocess separado.** O TTS worker roda em porta diferente (default 50052 vs 50051 para STT). A factory `_create_backend("kokoro")` faz lazy import da engine.
 - **Metricas TTS sao opcionais.** Usam mesmo padrao lazy import (`try/except ImportError` + `HAS_TTS_METRICS` flag) que `macaw.session.metrics`. Sempre verificar antes de observar.
 - **`POST /v1/audio/speech` retorna WAV ou PCM.** Default e WAV com header. `response_format=pcm` retorna raw PCM 16-bit.
+- **VoiceStore e opcional.** `app.state.voice_store` pode ser `None`. Rotas de CRUD de vozes retornam 400 se nao configurado. Dependency `get_voice_store()` retorna `None` nesse caso.
+- **Saved voice usa prefixo `voice_`.** Na rota speech, `voice` comecando com `voice_` e resolvido via VoiceStore. O prefixo e removido para lookup. Apos resolucao, `voice` vira `"default"` para a engine.
+- **Conflito ref_audio inline + saved voice.** Se o request traz `ref_audio` inline E o saved voice tem ref_audio, retorna 400 (InvalidRequestError). Nao sobreescreve silenciosamente.
 
 ## Workflow
 
@@ -129,7 +133,8 @@ Como adicionar nova engine: @docs/ADDING_ENGINE.md
 ## API Contracts
 
 - REST: compativel com OpenAI Audio API (`/v1/audio/transcriptions`, `/v1/audio/translations`, `/v1/audio/speech`)
+- REST: Voice management (`GET /v1/voices` lista vozes preset dos workers, `POST /v1/voices` cria saved voice, `GET /v1/voices/{id}`, `DELETE /v1/voices/{id}`)
 - WebSocket: protocolo de eventos JSON original (`/v1/realtime`) — STT streaming + TTS full-duplex. Comandos: `tts.speak`, `tts.cancel`. Eventos: `tts.speaking_start`, `tts.speaking_end`.
-- gRPC: protocolo interno runtime <-> worker (nao exposto a clientes). STT: `stt_worker.proto`. TTS: `tts_worker.proto`.
+- gRPC: protocolo interno runtime <-> worker (nao exposto a clientes). STT: `stt_worker.proto`. TTS: `tts_worker.proto` (inclui `ListVoices` RPC).
 
 Contratos detalhados: @docs/PRD.md (secoes 9-13)

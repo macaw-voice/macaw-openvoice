@@ -10,10 +10,13 @@ from typing import TYPE_CHECKING
 
 from macaw.proto.tts_worker_pb2 import (
     HealthResponse,
+    ListVoicesResponse,
     SynthesizeChunk,
+    VoiceInfoProto,
 )
 
 if TYPE_CHECKING:
+    from macaw._types import VoiceInfo
     from macaw.proto.tts_worker_pb2 import SynthesizeRequest
 
 
@@ -73,6 +76,22 @@ def audio_chunk_to_proto(
         is_last=is_last,
         duration=duration,
     )
+
+
+def voices_to_proto_response(
+    voices: list[VoiceInfo],
+) -> ListVoicesResponse:
+    """Convert list of VoiceInfo to ListVoicesResponse protobuf."""
+    protos = [
+        VoiceInfoProto(
+            voice_id=v.voice_id,
+            name=v.name,
+            language=v.language,
+            gender=v.gender or "",
+        )
+        for v in voices
+    ]
+    return ListVoicesResponse(voices=protos)
 
 
 def health_dict_to_proto_response(

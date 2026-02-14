@@ -178,6 +178,10 @@ module = "qwen_tts.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = "fish_speech.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = "huggingface_hub.*"
 ignore_missing_imports = true
 

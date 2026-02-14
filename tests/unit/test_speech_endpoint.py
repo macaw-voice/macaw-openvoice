@@ -656,3 +656,128 @@ class TestTTSChannelPooling:
         app = create_app()
         assert hasattr(app.state, "tts_channels")
         assert app.state.tts_channels == {}
+
+
+# ─── Saved Voice Resolution ───
+
+
+class TestSpeechWithSavedVoice:
+    """Speech route resolves voice_ prefix from VoiceStore."""
+
+    async def test_speech_with_saved_voice_resolves_params(self, tmp_path: object) -> None:
+        from macaw.server.voice_store import FileSystemVoiceStore
+
+        voice_store = FileSystemVoiceStore(str(tmp_path))
+        await voice_store.save(
+            voice_id="abc123",
+            name="My Clone",
+            voice_type="cloned",
+            ref_audio=b"\x00\x01" * 50,
+            ref_text="Hello reference",
+            instruction="Speak clearly",
+            language="en",
+        )
+
+        registry = _make_mock_registry()
+        manager = _make_mock_worker_manager()
+
+        app = create_app(
+            registry=registry,
+            worker_manager=manager,
+            voice_store=voice_store,
+        )
+
+        mock = _make_open_tts_stream_mock()
+        with patch("macaw.server.routes.speech._open_tts_stream", mock):
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                await client.post(
+                    "/v1/audio/speech",
+                    json={
+                        "model": "kokoro-v1",
+                        "input": "Generate speech",
+                        "voice": "voice_abc123",
+                    },
+                )
+
+        mock.assert_awaited_once()
+        proto = mock.call_args[1]["proto_request"]
+        # Voice is resolved to "default" (engine-agnostic)
+        assert proto.voice == "default"
+        # Saved voice params are injected into the proto
+        assert proto.ref_text == "Hello reference"
+        assert proto.instruction == "Speak clearly"
+        assert proto.language == "en"
+        assert len(proto.ref_audio) > 0
+
+    async def test_speech_with_nonexistent_saved_voice_returns_404(self, tmp_path: object) -> None:
+        from macaw.server.voice_store import FileSystemVoiceStore
+
+        voice_store = FileSystemVoiceStore(str(tmp_path))
+        registry = _make_mock_registry()
+        manager = _make_mock_worker_manager()
+
+        app = create_app(
+            registry=registry,
+            worker_manager=manager,
+            voice_store=voice_store,
+        )
+
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://test",
+        ) as client:
+            resp = await client.post(
+                "/v1/audio/speech",
+                json={
+                    "model": "kokoro-v1",
+                    "input": "Hello",
+                    "voice": "voice_nonexistent",
+                },
+            )
+
+        assert resp.status_code == 404
+
+    async def test_speech_saved_voice_plus_inline_ref_audio_returns_400(
+        self, tmp_path: object
+    ) -> None:
+        """Cannot provide both inline ref_audio and a saved cloned voice."""
+        import base64
+
+        from macaw.server.voice_store import FileSystemVoiceStore
+
+        voice_store = FileSystemVoiceStore(str(tmp_path))
+        await voice_store.save(
+            voice_id="conflict-id",
+            name="Clone",
+            voice_type="cloned",
+            ref_audio=b"\x00" * 100,
+        )
+
+        registry = _make_mock_registry()
+        manager = _make_mock_worker_manager()
+
+        app = create_app(
+            registry=registry,
+            worker_manager=manager,
+            voice_store=voice_store,
+        )
+
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://test",
+        ) as client:
+            resp = await client.post(
+                "/v1/audio/speech",
+                json={
+                    "model": "kokoro-v1",
+                    "input": "Hello",
+                    "voice": "voice_conflict-id",
+                    "ref_audio": base64.b64encode(b"\xff" * 50).decode(),
+                },
+            )
+
+        assert resp.status_code == 400
+        assert "inline ref_audio" in resp.json()["error"]["message"]

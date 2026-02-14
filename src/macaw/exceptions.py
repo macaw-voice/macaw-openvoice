@@ -194,6 +194,14 @@ class InvalidRequestError(MacawError):
 # --- TTS ---
 
 
+class VoiceNotFoundError(MacawError):
+    """Referenced saved voice not found in VoiceStore."""
+
+    def __init__(self, voice_id: str) -> None:
+        self.voice_id = voice_id
+        super().__init__(f"Saved voice '{voice_id}' not found")
+
+
 class TTSError(MacawError):
     """Speech synthesis (TTS) error."""
 

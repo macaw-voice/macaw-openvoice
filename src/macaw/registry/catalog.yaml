@@ -340,3 +340,4 @@ models:
         variant: "voice_design"
         default_language: "English"
         sample_rate: 24000
+

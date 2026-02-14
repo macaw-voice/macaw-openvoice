@@ -30,8 +30,11 @@ from .tts_worker_pb2 import (
     HealthResponse as TTSHealthResponse,
 )
 from .tts_worker_pb2 import (
+    ListVoicesRequest,
+    ListVoicesResponse,
     SynthesizeChunk,
     SynthesizeRequest,
+    VoiceInfoProto,
 )
 from .tts_worker_pb2_grpc import (
     TTSWorkerServicer,
@@ -45,6 +48,8 @@ __all__ = [
     "CancelResponse",
     "HealthRequest",
     "HealthResponse",
+    "ListVoicesRequest",
+    "ListVoicesResponse",
     "STTWorkerServicer",
     "STTWorkerStub",
     "Segment",
@@ -57,6 +62,7 @@ __all__ = [
     "TranscribeFileRequest",
     "TranscribeFileResponse",
     "TranscriptEvent",
+    "VoiceInfoProto",
     "Word",
     "add_STTWorkerServicer_to_server",
     "add_TTSWorkerServicer_to_server",

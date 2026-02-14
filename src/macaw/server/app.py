@@ -9,7 +9,7 @@ from fastapi import FastAPI
 
 import macaw
 from macaw.server.error_handlers import register_error_handlers
-from macaw.server.routes import health, realtime, speech, transcriptions, translations
+from macaw.server.routes import health, realtime, speech, transcriptions, translations, voices
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from macaw.preprocessing.pipeline import AudioPreprocessingPipeline
     from macaw.registry.registry import ModelRegistry
     from macaw.scheduler.scheduler import Scheduler
+    from macaw.server.voice_store import VoiceStore
     from macaw.workers.manager import WorkerManager
 
 
@@ -27,6 +28,7 @@ def create_app(
     preprocessing_pipeline: AudioPreprocessingPipeline | None = None,
     postprocessing_pipeline: PostProcessingPipeline | None = None,
     worker_manager: WorkerManager | None = None,
+    voice_store: VoiceStore | None = None,
     cors_origins: list[str] | None = None,
 ) -> FastAPI:
     """Cria a aplicacao FastAPI.
@@ -65,6 +67,7 @@ def create_app(
     app.state.preprocessing_pipeline = preprocessing_pipeline
     app.state.postprocessing_pipeline = postprocessing_pipeline
     app.state.worker_manager = worker_manager
+    app.state.voice_store = voice_store
     app.state.tts_channels = {}
 
     if cors_origins:
@@ -85,5 +88,6 @@ def create_app(
     app.include_router(translations.router)
     app.include_router(speech.router)
     app.include_router(realtime.router)
+    app.include_router(voices.router)
 
     return app

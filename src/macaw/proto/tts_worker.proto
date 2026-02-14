@@ -6,6 +6,9 @@ service TTSWorker {
   // Speech synthesis (server-streaming: text in, audio chunks out)
   rpc Synthesize (SynthesizeRequest) returns (stream SynthesizeChunk);
 
+  // List available voices for the loaded model (unary)
+  rpc ListVoices (ListVoicesRequest) returns (ListVoicesResponse);
+
   // Health check (unary)
   rpc Health (HealthRequest) returns (HealthResponse);
 }
@@ -29,6 +32,21 @@ message SynthesizeChunk {
   bytes audio_data = 1;          // 16-bit PCM audio chunk
   bool is_last = 2;              // Signals last chunk of the stream
   float duration = 3;            // Accumulated audio duration in seconds
+}
+
+// --- ListVoices ---
+
+message ListVoicesRequest {}
+
+message VoiceInfoProto {
+  string voice_id = 1;
+  string name = 2;
+  string language = 3;
+  string gender = 4;               // empty string if unknown
+}
+
+message ListVoicesResponse {
+  repeated VoiceInfoProto voices = 1;
 }
 
 // --- Health ---

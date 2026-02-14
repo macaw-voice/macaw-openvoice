@@ -12,10 +12,14 @@ from typing import TYPE_CHECKING
 import grpc
 
 from macaw.logging import get_logger
+from macaw.proto.tts_worker_pb2 import (
+    ListVoicesResponse,
+)
 from macaw.workers.tts.converters import (
     audio_chunk_to_proto,
     health_dict_to_proto_response,
     proto_request_to_synthesize_params,
+    voices_to_proto_response,
 )
 
 if TYPE_CHECKING:
@@ -24,6 +28,7 @@ if TYPE_CHECKING:
     from macaw.proto.tts_worker_pb2 import (
         HealthRequest,
         HealthResponse,
+        ListVoicesRequest,
         SynthesizeChunk,
         SynthesizeRequest,
     )
@@ -153,6 +158,20 @@ class TTSWorkerServicer(_BaseServicer):
             chunks=chunk_count,
             duration=accumulated_duration,
         )
+
+    async def ListVoices(  # noqa: N802  # type: ignore[override]
+        self,
+        request: ListVoicesRequest,
+        context: grpc.aio.ServicerContext[ListVoicesRequest, ListVoicesResponse],
+    ) -> ListVoicesResponse:
+        """List available voices from the loaded TTS backend."""
+        try:
+            voice_list = await self._backend.voices()
+        except Exception as exc:
+            logger.error("list_voices_error", error=str(exc))
+            await context.abort(grpc.StatusCode.INTERNAL, str(exc))
+            return ListVoicesResponse()  # pragma: no cover
+        return voices_to_proto_response(voice_list)
 
     async def Health(  # noqa: N802  # type: ignore[override]
         self,

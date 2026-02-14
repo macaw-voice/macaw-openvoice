@@ -16,6 +16,7 @@ from macaw._types import ModelType
 from macaw.exceptions import (
     InvalidRequestError,
     ModelNotFoundError,
+    VoiceNotFoundError,
     WorkerCrashError,
     WorkerTimeoutError,
     WorkerUnavailableError,
@@ -135,17 +136,51 @@ async def create_speech(
         except Exception as exc:
             raise InvalidRequestError(f"Invalid base64 in 'ref_audio': {exc}") from exc
 
+    # Resolve saved voice if voice starts with "voice_"
+    voice = body.voice
+    ref_text = body.ref_text
+    instruction = body.instruction
+    language = body.language
+
+    if voice.startswith("voice_"):
+        saved_voice_id = voice[len("voice_") :]
+        voice_store = request.app.state.voice_store
+        if voice_store is not None:
+            saved = await voice_store.get(saved_voice_id)
+            if saved is None:
+                raise VoiceNotFoundError(saved_voice_id)
+
+            # Conflict: inline ref_audio + saved voice with ref_audio
+            if ref_audio_bytes is not None and saved.ref_audio_path is not None:
+                raise InvalidRequestError(
+                    "Cannot provide both inline ref_audio and a saved cloned voice."
+                )
+
+            # Inject saved voice params (saved values fill gaps, don't override inline)
+            if saved.ref_audio_path is not None and ref_audio_bytes is None:
+                with open(saved.ref_audio_path, "rb") as f:
+                    ref_audio_bytes = f.read()
+            if saved.ref_text is not None and ref_text is None:
+                ref_text = saved.ref_text
+            if saved.instruction is not None and instruction is None:
+                instruction = saved.instruction
+            if saved.language is not None and language is None:
+                language = saved.language
+
+            # Use "default" as voice for the engine (saved voice provides params)
+            voice = "default"
+
     # Build proto request
     proto_request = build_tts_proto_request(
         request_id=request_id,
         text=body.input,
-        voice=body.voice,
+        voice=voice,
         sample_rate=_DEFAULT_SAMPLE_RATE,
         speed=body.speed,
-        language=body.language,
+        language=language,
         ref_audio=ref_audio_bytes,
-        ref_text=body.ref_text,
-        instruction=body.instruction,
+        ref_text=ref_text,
+        instruction=instruction,
     )
 
     worker_address = f"localhost:{worker.port}"

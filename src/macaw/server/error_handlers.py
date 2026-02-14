@@ -15,6 +15,7 @@ from macaw.exceptions import (
     InvalidRequestError,
     MacawError,
     ModelNotFoundError,
+    VoiceNotFoundError,
     WorkerCrashError,
     WorkerTimeoutError,
     WorkerUnavailableError,
@@ -44,6 +45,15 @@ def _error_response(status_code: int, message: str, error_type: str, code: str) 
 def _get_request_id(request: Request) -> str | None:
     """Extract request_id from request state, if available."""
     return getattr(request.state, "request_id", None)
+
+
+async def _handle_voice_not_found(request: Request, exc: VoiceNotFoundError) -> JSONResponse:
+    logger.warning(
+        "voice_not_found",
+        voice_id=exc.voice_id,
+        request_id=_get_request_id(request),
+    )
+    return _error_response(404, str(exc), "voice_not_found_error", "voice_not_found")
 
 
 async def _handle_model_not_found(request: Request, exc: ModelNotFoundError) -> JSONResponse:
@@ -164,6 +174,7 @@ async def _handle_unexpected_error(request: Request, exc: Exception) -> JSONResp
 def register_error_handlers(app: FastAPI) -> None:
     """Register all exception handlers on the FastAPI app."""
     app.add_exception_handler(InvalidRequestError, _handle_invalid_request)
+    app.add_exception_handler(VoiceNotFoundError, _handle_voice_not_found)
     app.add_exception_handler(ModelNotFoundError, _handle_model_not_found)
     app.add_exception_handler(AudioFormatError, _handle_audio_format_error)
     app.add_exception_handler(AudioTooLargeError, _handle_audio_too_large)
