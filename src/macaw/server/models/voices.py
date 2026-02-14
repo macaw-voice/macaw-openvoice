@@ -49,7 +49,9 @@ class CreateVoiceRequest(BaseModel):
 class SavedVoiceResponse(BaseModel):
     """Response for a saved voice (CRUD operations)."""
 
-    voice_id: str = Field(description="Unique voice identifier (use as 'voice_{id}' in speech requests).")
+    voice_id: str = Field(
+        description="Unique voice identifier (use as 'voice_{id}' in speech requests)."
+    )
     name: str = Field(description="Human-readable name.")
     voice_type: str = Field(description="Voice type: 'cloned' or 'designed'.")
     language: str | None = Field(default=None)

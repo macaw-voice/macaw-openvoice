@@ -124,8 +124,8 @@ class TestServicerCancelRPC:
         servicer = _make_servicer()
         context = AsyncMock()
 
-        # Simulate that req_1 is the current request being processed
-        servicer._current_request_id = "req_1"
+        # Simulate that req_1 is an active request being processed
+        servicer._active_request_ids.add("req_1")
 
         response = await servicer.Cancel(CancelRequest(request_id="req_1"), context)
         assert response.acknowledged is True
@@ -279,8 +279,8 @@ class TestServicerCooperativeCancel:
 
         await servicer.TranscribeFile(request, context)
 
-        # After completion, cancel flag and current_request_id should be cleaned
-        assert servicer._current_request_id is None
+        # After completion, cancel flag and active_request_ids should be cleaned
+        assert "req_cleanup" not in servicer._active_request_ids
         assert "req_cleanup" not in servicer._cancelled_requests
 
 

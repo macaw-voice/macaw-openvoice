@@ -7,6 +7,7 @@ Delegates transcription to the injected STTBackend.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import threading
 from typing import TYPE_CHECKING
 
@@ -28,6 +29,7 @@ from macaw.workers.stt.converters import (
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
+    from macaw._types import TranscriptSegment
     from macaw.proto.stt_worker_pb2 import (
         AudioFrame,
         CancelRequest,
@@ -62,7 +64,7 @@ class STTWorkerServicer(_BaseServicer):
         self._inference_semaphore = asyncio.Semaphore(self._max_concurrent)
         self._cancel_lock = threading.Lock()
         self._cancelled_requests: set[str] = set()
-        self._current_request_id: str | None = None
+        self._active_request_ids: set[str] = set()
 
     def is_cancelled(self, request_id: str) -> bool:
         """Check whether a request was cancelled.
@@ -88,8 +90,7 @@ class STTWorkerServicer(_BaseServicer):
         request_id = request.request_id
 
         with self._cancel_lock:
-            self._current_request_id = request_id
-            self._cancelled_requests.discard(request_id)
+            self._active_request_ids.add(request_id)
 
         logger.info(
             "transcribe_file_start",
@@ -128,7 +129,7 @@ class STTWorkerServicer(_BaseServicer):
             return TranscribeFileResponse()  # pragma: no cover — unreachable in real gRPC
         finally:
             with self._cancel_lock:
-                self._current_request_id = None
+                self._active_request_ids.discard(request_id)
                 self._cancelled_requests.discard(request_id)
 
         logger.info(
@@ -196,17 +197,24 @@ class STTWorkerServicer(_BaseServicer):
         logger.info("transcribe_stream_start", session_id=session_id)
 
         try:
-            # transcribe_stream is implemented as an async generator in all
-            # backends (uses yield), so it returns AsyncGenerator directly.
-            # mypy interprets the ABC signature as Coroutine -> AsyncIterator,
-            # but in practice the result is iterable without await.
-            stream = self._backend.transcribe_stream(
+            # transcribe_stream() can be:
+            # 1. An async generator (uses yield) — returns AsyncGenerator directly
+            # 2. An async coroutine that returns AsyncIterator — requires await
+            # We detect coroutines and await them, matching the TTS servicer pattern.
+            result = self._backend.transcribe_stream(
                 audio_chunks=audio_chunk_generator(),
                 language=None,
                 initial_prompt=initial_prompt,
                 hot_words=hot_words,
             )
-            async for segment in stream:  # type: ignore[attr-defined]
+
+            stream: AsyncIterator[TranscriptSegment]
+            if inspect.iscoroutine(result):
+                stream = await result
+            else:
+                stream = result  # type: ignore[assignment]
+
+            async for segment in stream:
                 if context.cancelled():
                     logger.info("transcribe_stream_cancelled", session_id=session_id)
                     return
@@ -239,7 +247,7 @@ class STTWorkerServicer(_BaseServicer):
 
         with self._cancel_lock:
             self._cancelled_requests.add(request_id)
-            is_current = self._current_request_id == request_id
+            is_current = request_id in self._active_request_ids
 
         logger.info(
             "cancel_received",
