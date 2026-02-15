@@ -99,9 +99,7 @@ def _batch_result_as_dict(result: BatchResult) -> dict[str, Any]:
         "language": result.language,
         "duration": result.duration,
         "segments": [_segment_as_dict(seg) for seg in result.segments],
-        "words": None
-        if result.words is None
-        else [_word_as_dict(word) for word in result.words],
+        "words": None if result.words is None else [_word_as_dict(word) for word in result.words],
     }
 
 

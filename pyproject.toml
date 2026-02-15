@@ -84,6 +84,7 @@ dev = [
     "mypy>=1.14,<2.0",
     "pytest>=8.0,<9.0",
     "pytest-asyncio>=0.25,<1.0",
+    "pytest-cov>=6.0,<7.0",
     "grpcio-tools>=1.78,<2.0",
     "types-PyYAML>=6.0",
     "types-protobuf>=6.31,<7.0",
@@ -91,6 +92,10 @@ dev = [
     "scipy-stubs>=1.11",
     "prometheus_client>=0.20,<1.0",
     "openai>=1.0",
+    "radon>=6.0,<7.0",
+    "bandit[toml]>=1.8,<2.0",
+    "pip-audit>=2.7,<3.0",
+    "pre-commit>=4.0,<5.0",
 ]
 all = [
     "macaw-openvoice[grpc,faster-whisper,itn,dev]",
@@ -244,3 +249,33 @@ markers = [
     "integration: tests that require installed model",
     "slow: tests that take more than 10s",
 ]
+
+[tool.coverage.run]
+source = ["macaw"]
+branch = true
+omit = [
+    "macaw/proto/*_pb2*.py",
+    "macaw/workers/stt/__main__.py",
+    "macaw/workers/tts/__main__.py",
+]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_empty = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@overload",
+    "raise NotImplementedError",
+    "pass",
+    "\\.\\.\\.",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.bandit]
+exclude_dirs = ["tests", "macaw/proto", "inspiracao", "demo"]
+skips = ["B101", "B404", "B603", "B614", "B615"]

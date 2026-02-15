@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uvicorn
+
 from macaw.logging import configure_logging
 
 from .config import DemoConfig
@@ -22,4 +23,3 @@ def run() -> None:
 
 if __name__ == "__main__":
     run()
-
