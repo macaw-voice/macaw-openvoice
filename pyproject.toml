@@ -48,25 +48,21 @@ dependencies = [
     "soundfile>=0.12,<1.0",
     "grpcio>=1.78,<2.0",
     "protobuf>=6.31,<7.0",
+    "fastapi>=0.115,<1.0",
+    "uvicorn[standard]>=0.34,<1.0",
+    "python-multipart>=0.0.18",
+    "huggingface_hub>=0.20,<1.0",
 ]
 
 [project.scripts]
 macaw = "macaw.cli:cli"
 
 [project.optional-dependencies]
-server = [
-    "fastapi>=0.115,<1.0",
-    "uvicorn[standard]>=0.34,<1.0",
-    "python-multipart>=0.0.18",
-]
 grpc = [
     "grpcio-tools>=1.78,<2.0",
 ]
 faster-whisper = [
     "faster-whisper>=1.1,<2.0",
-]
-wenet = [
-    "wenet>=2.0,<3.0",
 ]
 kokoro = [
     "kokoro>=0.1,<1.0",
@@ -74,12 +70,11 @@ kokoro = [
 qwen3-tts = [
     "qwen-tts>=0.1,<2.0",
 ]
-huggingface = [
-    "huggingface_hub>=0.20,<1.0",
-]
 stream = [
     "sounddevice>=0.4,<1.0",
     "websockets>=12.0,<14.0",
+    "torch>=2.0",
+    "torchaudio>=2.0",
 ]
 itn = [
     "nemo_text_processing>=1.1,<2.0",
@@ -94,15 +89,11 @@ dev = [
     "types-protobuf>=6.31,<7.0",
     "types-grpcio>=1.0",
     "scipy-stubs>=1.11",
-    "fastapi>=0.115,<1.0",
-    "starlette>=0.36,<1.0",
-    "python-multipart>=0.0.18",
     "prometheus_client>=0.20,<1.0",
-    "huggingface_hub>=0.20,<1.0",
     "openai>=1.0",
 ]
 all = [
-    "macaw-openvoice[server,grpc,faster-whisper,wenet,itn,dev]",
+    "macaw-openvoice[grpc,faster-whisper,itn,dev]",
 ]
 
 [project.urls]
@@ -113,15 +104,15 @@ Repository = "https://github.com/usemacaw/macaw-openvoice"
 Changelog = "https://github.com/usemacaw/macaw-openvoice/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/macaw"]
+packages = ["macaw"]
 
 [tool.hatch.build.hooks.custom]
 
 [tool.ruff]
 target-version = "py311"
 line-length = 99
-src = ["src"]
-extend-exclude = ["src/macaw/proto/stt_worker_pb2*", "src/macaw/proto/tts_worker_pb2*"]
+src = ["."]
+extend-exclude = ["macaw/proto/stt_worker_pb2*", "macaw/proto/tts_worker_pb2*", "inspiracao/"]
 
 [tool.ruff.lint]
 select = [
@@ -152,7 +143,7 @@ disallow_untyped_defs = true
 disallow_any_generics = true
 check_untyped_defs = true
 no_implicit_reexport = true
-mypy_path = "src"
+mypy_path = "."
 
 [[tool.mypy.overrides]]
 module = "macaw.proto.*"
@@ -179,15 +170,15 @@ module = "scipy.signal"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = "wenet.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
 module = "kokoro.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "qwen_tts.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "fish_speech.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

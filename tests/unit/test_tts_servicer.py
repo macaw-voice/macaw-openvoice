@@ -512,7 +512,7 @@ class TestCreateBackend:
         """Engine desconhecida levanta ValueError."""
         from macaw.workers.tts.main import _create_backend
 
-        with pytest.raises(ValueError, match="Engine TTS nao suportada: nonexistent"):
+        with pytest.raises(ValueError, match="Unsupported TTS engine: nonexistent"):
             _create_backend("nonexistent")
 
     def test_kokoro_returns_backend_instance(self) -> None:
@@ -546,13 +546,15 @@ class TestParseArgs:
         assert args.port == 50052
         assert args.engine == "kokoro"
         assert args.model_path == "/models/kokoro"
-        assert args.device == "auto"
-        assert args.model_name == "kokoro-v1"
+        assert args.engine_config == "{}"
 
     def test_custom_values(self) -> None:
         """Argumentos customizados sao parseados corretamente."""
+        import json
+
         from macaw.workers.tts.main import parse_args
 
+        config = {"device": "cuda", "model_name": "piper-v1", "variant": "custom_voice"}
         args = parse_args(
             [
                 "--port",
@@ -561,14 +563,14 @@ class TestParseArgs:
                 "piper",
                 "--model-path",
                 "/models/piper",
-                "--device",
-                "cuda",
-                "--model-name",
-                "piper-v1",
+                "--engine-config",
+                json.dumps(config),
             ]
         )
         assert args.port == 60000
         assert args.engine == "piper"
         assert args.model_path == "/models/piper"
-        assert args.device == "cuda"
-        assert args.model_name == "piper-v1"
+        parsed = json.loads(args.engine_config)
+        assert parsed["device"] == "cuda"
+        assert parsed["model_name"] == "piper-v1"
+        assert parsed["variant"] == "custom_voice"

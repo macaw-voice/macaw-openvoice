@@ -1,0 +1,190 @@
+"""Tests for the VoiceStore (filesystem-based voice persistence).
+
+Validates:
+- Save and retrieve voices (round-trip)
+- Save cloned voice with ref_audio
+- Save designed voice without ref_audio
+- Get returns None for non-existent voice
+- List voices with and without type filter
+- Delete voice removes from disk
+- Delete non-existent returns False
+"""
+
+from __future__ import annotations
+
+import json
+import os
+
+from macaw.server.voice_store import FileSystemVoiceStore
+
+
+class TestFileSystemVoiceStoreSave:
+    """VoiceStore.save persists voice metadata and optional ref_audio."""
+
+    async def test_save_designed_voice(self, tmp_path: object) -> None:
+        store = FileSystemVoiceStore(str(tmp_path))
+
+        saved = await store.save(
+            voice_id="v1",
+            name="Deep Narrator",
+            voice_type="designed",
+            instruction="A deep male narrator voice.",
+            language="en",
+        )
+
+        assert saved.voice_id == "v1"
+        assert saved.name == "Deep Narrator"
+        assert saved.voice_type == "designed"
+        assert saved.instruction == "A deep male narrator voice."
+        assert saved.language == "en"
+        assert saved.ref_audio_path is None
+        assert saved.created_at > 0
+
+    async def test_save_cloned_voice_with_ref_audio(self, tmp_path: object) -> None:
+        store = FileSystemVoiceStore(str(tmp_path))
+        audio_data = b"\x00\x01\x02\x03" * 100
+
+        saved = await store.save(
+            voice_id="v2",
+            name="My Clone",
+            voice_type="cloned",
+            ref_audio=audio_data,
+            ref_text="Hello world",
+            language="en",
+        )
+
+        assert saved.voice_type == "cloned"
+        assert saved.ref_audio_path is not None
+        assert saved.ref_text == "Hello world"
+        # Verify audio file written to disk
+        assert os.path.isfile(saved.ref_audio_path)
+        with open(saved.ref_audio_path, "rb") as f:
+            assert f.read() == audio_data
+
+    async def test_save_writes_metadata_json(self, tmp_path: object) -> None:
+        store = FileSystemVoiceStore(str(tmp_path))
+
+        await store.save(
+            voice_id="v3",
+            name="Test Voice",
+            voice_type="designed",
+            instruction="Test instruction",
+        )
+
+        metadata_path = os.path.join(str(tmp_path), "voices", "v3", "metadata.json")
+        assert os.path.isfile(metadata_path)
+        with open(metadata_path) as f:
+            metadata = json.load(f)
+        assert metadata["voice_id"] == "v3"
+        assert metadata["name"] == "Test Voice"
+        assert metadata["voice_type"] == "designed"
+        assert metadata["has_ref_audio"] is False
+
+
+class TestFileSystemVoiceStoreGet:
+    """VoiceStore.get retrieves saved voices by ID."""
+
+    async def test_get_existing_voice(self, tmp_path: object) -> None:
+        store = FileSystemVoiceStore(str(tmp_path))
+        await store.save(
+            voice_id="v1",
+            name="My Voice",
+            voice_type="designed",
+            instruction="Speak softly",
+        )
+
+        result = await store.get("v1")
+
+        assert result is not None
+        assert result.voice_id == "v1"
+        assert result.name == "My Voice"
+        assert result.instruction == "Speak softly"
+
+    async def test_get_nonexistent_returns_none(self, tmp_path: object) -> None:
+        store = FileSystemVoiceStore(str(tmp_path))
+
+        result = await store.get("nonexistent")
+
+        assert result is None
+
+    async def test_get_cloned_voice_has_ref_audio_path(self, tmp_path: object) -> None:
+        store = FileSystemVoiceStore(str(tmp_path))
+        await store.save(
+            voice_id="v1",
+            name="Clone",
+            voice_type="cloned",
+            ref_audio=b"\x00" * 100,
+            ref_text="Test transcript",
+        )
+
+        result = await store.get("v1")
+
+        assert result is not None
+        assert result.ref_audio_path is not None
+        assert os.path.isfile(result.ref_audio_path)
+
+
+class TestFileSystemVoiceStoreList:
+    """VoiceStore.list_voices returns filtered voice lists."""
+
+    async def test_list_empty_store(self, tmp_path: object) -> None:
+        store = FileSystemVoiceStore(str(tmp_path))
+
+        result = await store.list_voices()
+
+        assert result == []
+
+    async def test_list_all_voices(self, tmp_path: object) -> None:
+        store = FileSystemVoiceStore(str(tmp_path))
+        await store.save(voice_id="v1", name="Voice 1", voice_type="designed", instruction="i1")
+        await store.save(voice_id="v2", name="Voice 2", voice_type="cloned", ref_audio=b"\x00")
+
+        result = await store.list_voices()
+
+        assert len(result) == 2
+        ids = {v.voice_id for v in result}
+        assert ids == {"v1", "v2"}
+
+    async def test_list_with_type_filter(self, tmp_path: object) -> None:
+        store = FileSystemVoiceStore(str(tmp_path))
+        await store.save(voice_id="v1", name="Designed", voice_type="designed", instruction="i1")
+        await store.save(voice_id="v2", name="Cloned", voice_type="cloned", ref_audio=b"\x00")
+
+        cloned = await store.list_voices(type_filter="cloned")
+        designed = await store.list_voices(type_filter="designed")
+
+        assert len(cloned) == 1
+        assert cloned[0].voice_id == "v2"
+        assert len(designed) == 1
+        assert designed[0].voice_id == "v1"
+
+
+class TestFileSystemVoiceStoreDelete:
+    """VoiceStore.delete removes voices from disk."""
+
+    async def test_delete_existing_voice(self, tmp_path: object) -> None:
+        store = FileSystemVoiceStore(str(tmp_path))
+        await store.save(voice_id="v1", name="Delete Me", voice_type="designed", instruction="i1")
+
+        deleted = await store.delete("v1")
+
+        assert deleted is True
+        # Verify removed from disk
+        voice_dir = os.path.join(str(tmp_path), "voices", "v1")
+        assert not os.path.exists(voice_dir)
+
+    async def test_delete_nonexistent_returns_false(self, tmp_path: object) -> None:
+        store = FileSystemVoiceStore(str(tmp_path))
+
+        deleted = await store.delete("nonexistent")
+
+        assert deleted is False
+
+    async def test_delete_then_get_returns_none(self, tmp_path: object) -> None:
+        store = FileSystemVoiceStore(str(tmp_path))
+        await store.save(voice_id="v1", name="Temp", voice_type="designed", instruction="i1")
+
+        await store.delete("v1")
+        result = await store.get("v1")
+
+        assert result is None

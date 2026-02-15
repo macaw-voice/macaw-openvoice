@@ -294,6 +294,62 @@ class TestAutoRestart:
             await manager.stop_all()
 
 
+class TestWorkerSummary:
+    def test_empty_manager_returns_all_zeros(self) -> None:
+        manager = WorkerManager()
+        summary = manager.worker_summary()
+        assert summary == {"total": 0, "ready": 0, "starting": 0, "crashed": 0}
+
+    @patch("macaw.workers.manager.subprocess.Popen")
+    async def test_counts_starting_workers(self, mock_popen: MagicMock) -> None:
+        mock_popen.return_value = _make_mock_process()
+        manager = WorkerManager()
+
+        with patch(
+            "macaw.workers.manager._check_worker_health", new_callable=AsyncMock
+        ) as mock_health:
+            mock_health.side_effect = Exception("not ready")
+            await manager.spawn_worker(
+                model_name="test-model",
+                port=50070,
+                engine="faster-whisper",
+                model_path="/models/test",
+                engine_config={},
+            )
+
+            summary = manager.worker_summary()
+            assert summary["total"] == 1
+            assert summary["starting"] == 1
+            assert summary["ready"] == 0
+
+            await manager.stop_all()
+
+    @patch("macaw.workers.manager.subprocess.Popen")
+    async def test_counts_ready_workers(self, mock_popen: MagicMock) -> None:
+        mock_popen.return_value = _make_mock_process()
+        manager = WorkerManager()
+
+        with patch(
+            "macaw.workers.manager._check_worker_health", new_callable=AsyncMock
+        ) as mock_health:
+            mock_health.return_value = {"status": "ok"}
+            await manager.spawn_worker(
+                model_name="test-model",
+                port=50071,
+                engine="faster-whisper",
+                model_path="/models/test",
+                engine_config={},
+            )
+
+            await asyncio.sleep(1.0)
+            summary = manager.worker_summary()
+            assert summary["total"] == 1
+            assert summary["ready"] == 1
+            assert summary["starting"] == 0
+
+            await manager.stop_all()
+
+
 class TestStopWorker:
     @patch("macaw.workers.manager.subprocess.Popen")
     async def test_sets_stopped_state(self, mock_popen: MagicMock) -> None:

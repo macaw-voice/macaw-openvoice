@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package macaw.tts;
+
+service TTSWorker {
+  // Speech synthesis (server-streaming: text in, audio chunks out)
+  rpc Synthesize (SynthesizeRequest) returns (stream SynthesizeChunk);
+
+  // List available voices for the loaded model (unary)
+  rpc ListVoices (ListVoicesRequest) returns (ListVoicesResponse);
+
+  // Health check (unary)
+  rpc Health (HealthRequest) returns (HealthResponse);
+}
+
+// --- Synthesize messages ---
+
+message SynthesizeRequest {
+  string request_id = 1;
+  string text = 2;               // Text to synthesize
+  string voice = 3;              // Voice identifier
+  int32 sample_rate = 4;         // Output audio sample rate
+  float speed = 5;               // Synthesis speed (0.25-4.0)
+  // Extended options (LLM-based TTS engines)
+  string language = 6;           // Target language (e.g., "English", "Chinese")
+  bytes ref_audio = 7;           // Reference audio for voice cloning (PCM/WAV)
+  string ref_text = 8;           // Reference transcript for voice cloning
+  string instruction = 9;        // Voice design / style instruction
+}
+
+message SynthesizeChunk {
+  bytes audio_data = 1;          // 16-bit PCM audio chunk
+  bool is_last = 2;              // Signals last chunk of the stream
+  float duration = 3;            // Accumulated audio duration in seconds
+}
+
+// --- ListVoices ---
+
+message ListVoicesRequest {}
+
+message VoiceInfoProto {
+  string voice_id = 1;
+  string name = 2;
+  string language = 3;
+  string gender = 4;               // empty string if unknown
+}
+
+message ListVoicesResponse {
+  repeated VoiceInfoProto voices = 1;
+}
+
+// --- Health ---
+
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;             // "ok", "loading", "error"
+  string model_name = 2;
+  string engine = 3;
+  map<string, string> metadata = 4;
+}

@@ -15,5 +15,5 @@ engine_config:
   device: "cpu"
   dtype: "float32"
   variant: "custom_voice"
-  default_voice: "Chelsie"
+  default_voice: "vivian"
   default_language: "English"

@@ -1,14 +1,14 @@
-"""M7-07 Contract Comparison: ambos backends STT produzem respostas com contrato identico.
+"""M7-07 Contract Comparison: STT backends produzem respostas com contrato identico.
 
-Prova que Faster-Whisper (encoder-decoder) e WeNet (CTC) retornam respostas com a mesma
-estrutura/campos em todos os formatos de resposta. O texto pode diferir (engines distintas),
-mas o formato e identico. Garante que um cliente pode trocar de engine sem alterar codigo.
+Prova que backends STT retornam respostas com a mesma estrutura/campos em todos os
+formatos de resposta. O texto pode diferir (engines distintas), mas o formato e identico.
+Garante que um cliente pode trocar de engine sem alterar codigo.
 
 Escopo:
 - Batch REST: response_format json, verbose_json, text, srt, vtt
 - WebSocket: mesma sequencia de eventos para ambas architectures
-- Hot words: ambos backends recebem hot words
-- ITN: aplicado em transcript.final de ambos
+- Hot words: backends recebem hot words
+- ITN: aplicado em transcript.final
 - Zero campos faltando ou extras entre backends
 """
 
@@ -170,7 +170,7 @@ def _make_streaming_session(
 class TestBatchJsonContract:
     """response_format=json retorna contrato identico para ambos backends."""
 
-    @pytest.mark.parametrize("engine", ["faster-whisper", "wenet"])
+    @pytest.mark.parametrize("engine", ["faster-whisper"])
     async def test_json_has_text_field(self, engine: str) -> None:
         """Response JSON tem campo 'text'."""
         result = _make_batch_result(engine=engine)
@@ -189,7 +189,7 @@ class TestBatchJsonContract:
         body = response.json()
         assert "text" in body
 
-    @pytest.mark.parametrize("engine", ["faster-whisper", "wenet"])
+    @pytest.mark.parametrize("engine", ["faster-whisper"])
     async def test_json_no_extra_fields(self, engine: str) -> None:
         """Response JSON tem APENAS campo 'text' (sem campos extras)."""
         result = _make_batch_result(engine=engine)
@@ -207,7 +207,7 @@ class TestBatchJsonContract:
         body = response.json()
         assert set(body.keys()) == {"text"}
 
-    @pytest.mark.parametrize("engine", ["faster-whisper", "wenet"])
+    @pytest.mark.parametrize("engine", ["faster-whisper"])
     async def test_json_text_is_string(self, engine: str) -> None:
         """Campo 'text' e do tipo string."""
         result = _make_batch_result(engine=engine)
@@ -234,7 +234,7 @@ class TestBatchJsonContract:
 class TestBatchVerboseJsonContract:
     """response_format=verbose_json retorna contrato identico para ambos backends."""
 
-    @pytest.mark.parametrize("engine", ["faster-whisper", "wenet"])
+    @pytest.mark.parametrize("engine", ["faster-whisper"])
     async def test_verbose_json_has_required_fields(self, engine: str) -> None:
         """Verbose JSON tem task, language, duration, text, segments."""
         result = _make_batch_result(engine=engine)
@@ -254,7 +254,7 @@ class TestBatchVerboseJsonContract:
         required = {"task", "language", "duration", "text", "segments"}
         assert required.issubset(set(body.keys()))
 
-    @pytest.mark.parametrize("engine", ["faster-whisper", "wenet"])
+    @pytest.mark.parametrize("engine", ["faster-whisper"])
     async def test_verbose_json_segments_structure(self, engine: str) -> None:
         """Cada segmento tem id, start, end, text."""
         result = _make_batch_result(engine=engine)
@@ -276,7 +276,7 @@ class TestBatchVerboseJsonContract:
             assert "end" in seg
             assert "text" in seg
 
-    @pytest.mark.parametrize("engine", ["faster-whisper", "wenet"])
+    @pytest.mark.parametrize("engine", ["faster-whisper"])
     async def test_verbose_json_words_when_present(self, engine: str) -> None:
         """Array words tem word, start, end em cada elemento."""
         result = _make_batch_result(engine=engine)
@@ -298,7 +298,7 @@ class TestBatchVerboseJsonContract:
             assert "start" in word
             assert "end" in word
 
-    @pytest.mark.parametrize("engine", ["faster-whisper", "wenet"])
+    @pytest.mark.parametrize("engine", ["faster-whisper"])
     async def test_verbose_json_types(self, engine: str) -> None:
         """Tipos corretos: language=str, duration=float, text=str."""
         result = _make_batch_result(engine=engine)
@@ -319,7 +319,7 @@ class TestBatchVerboseJsonContract:
         assert isinstance(body["text"], str)
         assert isinstance(body["segments"], list)
 
-    @pytest.mark.parametrize("engine", ["faster-whisper", "wenet"])
+    @pytest.mark.parametrize("engine", ["faster-whisper"])
     async def test_verbose_json_no_extra_segment_fields(self, engine: str) -> None:
         """Segmentos nao tem campos inesperados."""
         result = _make_batch_result(engine=engine)
@@ -358,7 +358,7 @@ class TestBatchVerboseJsonContract:
 class TestBatchTextFormat:
     """response_format=text retorna texto puro para ambos backends."""
 
-    @pytest.mark.parametrize("engine", ["faster-whisper", "wenet"])
+    @pytest.mark.parametrize("engine", ["faster-whisper"])
     async def test_text_returns_plain_text(self, engine: str) -> None:
         """Response e texto puro, nao JSON."""
         result = _make_batch_result(engine=engine)
@@ -386,7 +386,7 @@ class TestBatchTextFormat:
 class TestBatchSrtFormat:
     """response_format=srt produz output valido para ambos backends."""
 
-    @pytest.mark.parametrize("engine", ["faster-whisper", "wenet"])
+    @pytest.mark.parametrize("engine", ["faster-whisper"])
     async def test_srt_has_proper_format(self, engine: str) -> None:
         """SRT contem indice, timestamp e texto."""
         result = _make_batch_result(engine=engine)
@@ -406,7 +406,7 @@ class TestBatchSrtFormat:
         assert "1\n" in body
         assert "-->" in body
 
-    @pytest.mark.parametrize("engine", ["faster-whisper", "wenet"])
+    @pytest.mark.parametrize("engine", ["faster-whisper"])
     async def test_srt_timestamp_format(self, engine: str) -> None:
         """Timestamps seguem formato HH:MM:SS,mmm."""
         result = _make_batch_result(engine=engine)
@@ -434,7 +434,7 @@ class TestBatchSrtFormat:
 class TestBatchVttFormat:
     """response_format=vtt produz output valido para ambos backends."""
 
-    @pytest.mark.parametrize("engine", ["faster-whisper", "wenet"])
+    @pytest.mark.parametrize("engine", ["faster-whisper"])
     async def test_vtt_starts_with_webvtt(self, engine: str) -> None:
         """Output comeca com 'WEBVTT'."""
         result = _make_batch_result(engine=engine)
@@ -452,7 +452,7 @@ class TestBatchVttFormat:
         assert response.status_code == 200
         assert response.text.startswith("WEBVTT\n")
 
-    @pytest.mark.parametrize("engine", ["faster-whisper", "wenet"])
+    @pytest.mark.parametrize("engine", ["faster-whisper"])
     async def test_vtt_timestamp_format(self, engine: str) -> None:
         """Timestamps seguem formato HH:MM:SS.mmm (ponto, nao virgula)."""
         result = _make_batch_result(engine=engine)
@@ -477,139 +477,6 @@ class TestBatchVttFormat:
 # ---------------------------------------------------------------------------
 
 
-class TestContractIdentical:
-    """Campos e tipos sao identicos entre engines — zero divergencia estrutural."""
-
-    async def test_json_fields_identical_between_engines(self) -> None:
-        """JSON response tem exatamente os mesmos campos para ambos engines."""
-        fw_result = _make_batch_result(engine="faster-whisper")
-        wn_result = _make_batch_result(engine="wenet")
-
-        fw_scheduler = _make_scheduler(fw_result)
-        wn_scheduler = _make_scheduler(wn_result)
-
-        fw_app = _make_app(scheduler=fw_scheduler)
-        wn_app = _make_app(scheduler=wn_scheduler)
-
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=fw_app), base_url="http://test"
-        ) as client:
-            fw_response = await client.post(
-                "/v1/audio/transcriptions",
-                files={"file": ("audio.wav", b"fake-audio", "audio/wav")},
-                data={"model": "faster-whisper-tiny"},
-            )
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=wn_app), base_url="http://test"
-        ) as client:
-            wn_response = await client.post(
-                "/v1/audio/transcriptions",
-                files={"file": ("audio.wav", b"fake-audio", "audio/wav")},
-                data={"model": "wenet-tiny"},
-            )
-
-        assert set(fw_response.json().keys()) == set(wn_response.json().keys())
-
-    async def test_verbose_json_fields_identical_between_engines(self) -> None:
-        """Verbose JSON tem mesmos campos top-level para ambos engines."""
-        fw_result = _make_batch_result(engine="faster-whisper")
-        wn_result = _make_batch_result(engine="wenet")
-
-        fw_scheduler = _make_scheduler(fw_result)
-        wn_scheduler = _make_scheduler(wn_result)
-
-        fw_app = _make_app(scheduler=fw_scheduler)
-        wn_app = _make_app(scheduler=wn_scheduler)
-
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=fw_app), base_url="http://test"
-        ) as client:
-            fw_response = await client.post(
-                "/v1/audio/transcriptions",
-                files={"file": ("audio.wav", b"fake-audio", "audio/wav")},
-                data={"model": "faster-whisper-tiny", "response_format": "verbose_json"},
-            )
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=wn_app), base_url="http://test"
-        ) as client:
-            wn_response = await client.post(
-                "/v1/audio/transcriptions",
-                files={"file": ("audio.wav", b"fake-audio", "audio/wav")},
-                data={"model": "wenet-tiny", "response_format": "verbose_json"},
-            )
-
-        assert set(fw_response.json().keys()) == set(wn_response.json().keys())
-
-    async def test_segment_fields_identical_between_engines(self) -> None:
-        """Cada segmento tem mesmos campos para ambos engines."""
-        fw_result = _make_batch_result(engine="faster-whisper")
-        wn_result = _make_batch_result(engine="wenet")
-
-        fw_scheduler = _make_scheduler(fw_result)
-        wn_scheduler = _make_scheduler(wn_result)
-
-        fw_app = _make_app(scheduler=fw_scheduler)
-        wn_app = _make_app(scheduler=wn_scheduler)
-
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=fw_app), base_url="http://test"
-        ) as client:
-            fw_response = await client.post(
-                "/v1/audio/transcriptions",
-                files={"file": ("audio.wav", b"fake-audio", "audio/wav")},
-                data={"model": "faster-whisper-tiny", "response_format": "verbose_json"},
-            )
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=wn_app), base_url="http://test"
-        ) as client:
-            wn_response = await client.post(
-                "/v1/audio/transcriptions",
-                files={"file": ("audio.wav", b"fake-audio", "audio/wav")},
-                data={"model": "wenet-tiny", "response_format": "verbose_json"},
-            )
-
-        fw_seg_keys = set(fw_response.json()["segments"][0].keys())
-        wn_seg_keys = set(wn_response.json()["segments"][0].keys())
-        assert fw_seg_keys == wn_seg_keys
-
-    async def test_response_type_consistent(self) -> None:
-        """Tipos de cada campo sao identicos entre engines."""
-        fw_result = _make_batch_result(engine="faster-whisper")
-        wn_result = _make_batch_result(engine="wenet")
-
-        fw_scheduler = _make_scheduler(fw_result)
-        wn_scheduler = _make_scheduler(wn_result)
-
-        fw_app = _make_app(scheduler=fw_scheduler)
-        wn_app = _make_app(scheduler=wn_scheduler)
-
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=fw_app), base_url="http://test"
-        ) as client:
-            fw_response = await client.post(
-                "/v1/audio/transcriptions",
-                files={"file": ("audio.wav", b"fake-audio", "audio/wav")},
-                data={"model": "faster-whisper-tiny", "response_format": "verbose_json"},
-            )
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=wn_app), base_url="http://test"
-        ) as client:
-            wn_response = await client.post(
-                "/v1/audio/transcriptions",
-                files={"file": ("audio.wav", b"fake-audio", "audio/wav")},
-                data={"model": "wenet-tiny", "response_format": "verbose_json"},
-            )
-
-        fw_body = fw_response.json()
-        wn_body = wn_response.json()
-
-        for key in fw_body:
-            assert type(fw_body[key]) is type(wn_body[key]), (
-                f"Tipo diverge para '{key}': "
-                f"{type(fw_body[key]).__name__} vs {type(wn_body[key]).__name__}"
-            )
-
-
 # ---------------------------------------------------------------------------
 # Hot words contract
 # ---------------------------------------------------------------------------
@@ -618,7 +485,7 @@ class TestContractIdentical:
 class TestHotWordsContract:
     """Hot words recebidos por ambos backends sem divergencia estrutural."""
 
-    @pytest.mark.parametrize("engine", ["faster-whisper", "wenet"])
+    @pytest.mark.parametrize("engine", ["faster-whisper"])
     async def test_hot_words_in_batch_result_both_engines(self, engine: str) -> None:
         """Ambos engines retornam texto quando hot words sao configurados."""
         hot_word_result = BatchResult(
@@ -660,7 +527,7 @@ class TestHotWordsContract:
 class TestITNContract:
     """ITN aplicado ao resultado de ambos backends de forma identica."""
 
-    @pytest.mark.parametrize("engine", ["faster-whisper", "wenet"])
+    @pytest.mark.parametrize("engine", ["faster-whisper"])
     async def test_itn_applied_to_both_engines(self, engine: str) -> None:
         """format_response produz saida estruturalmente identica para ambos."""
         result = _make_batch_result(engine=engine)

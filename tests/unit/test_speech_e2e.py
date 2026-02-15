@@ -197,7 +197,12 @@ class TestSpeechHappyPathWAV:
         assert body[:4] == b"RIFF"
         assert body[8:12] == b"WAVE"
 
-    async def test_wav_header_has_correct_data_size(self) -> None:
+    async def test_wav_header_uses_streaming_max_size_placeholder(self) -> None:
+        """Streaming WAV uses 0x7FFFFFFF as data_size placeholder.
+
+        This is a well-known convention for streaming WAV where the total
+        size is unknown at the time of writing the header.
+        """
         pcm_data = b"\x00\x01" * 300
         chunks = [_make_chunk(pcm_data, 1.5, is_last=True)]
         app = _make_app()
@@ -207,9 +212,11 @@ class TestSpeechHappyPathWAV:
             resp = await _post_speech(app, _default_body(response_format="wav"))
 
         body = resp.content
-        # data subchunk size is at offset 40 (little-endian uint32)
+        # data subchunk size at offset 40 is the streaming placeholder
         data_size = struct.unpack_from("<I", body, 40)[0]
-        assert data_size == len(pcm_data)
+        assert data_size == 0x7FFFFFFF
+        # Actual PCM data follows the 44-byte header
+        assert body[44:] == pcm_data
 
     async def test_default_format_is_wav(self) -> None:
         """Quando response_format nao especificado, default e wav."""

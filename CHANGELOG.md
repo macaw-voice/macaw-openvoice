@@ -7,7 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- mypy `NameError` risk in `cli/models.py` — renamed loop variable `e` to `entry` to avoid CPython except-bound variable deletion (#review-phase1)
+- mypy `call-overload` error in `workers/tts/qwen3.py` — added explicit type narrowing for `ref_audio` in `_decode_ref_audio()` (#review-phase1)
+- Swallowed exception in `Qwen3TTSBackend.voices()` — `except Exception` now captures and logs the error string (#review-phase1)
+- Swallowed exception in `WorkerManager._health_probe()` — `except Exception: pass` replaced with `logger.debug` with `exc_info` (#review-phase1)
+- GPU memory leak in `KokoroBackend.unload()` — now calls `del` on model/pipeline and `torch.cuda.empty_cache()`, matching Qwen3 behavior (#review-phase1)
+- Missing VoiceStore null guard in `POST /v1/audio/speech` — requests with `voice_` prefix now raise `InvalidRequestError` when VoiceStore is not configured, instead of passing invalid voice ID to engine (#review-phase1)
+- Wrong `type: ignore` code in `workers/stt/main.py` and `workers/tts/main.py` — changed from `arg-type` to `call-overload` (#review-phase1)
+- Flaky test `test_semaphore_allows_parallel_when_higher` — replaced absolute timing assertion with relative comparison (parallel < 75% of serial), eliminating CI flakiness (#review-phase3)
+- Portuguese error messages standardized to English across error handlers, worker factories, and WebSocket routes (#review-phase3)
+- `logging.getLogger` in `vad/silero.py` replaced with `macaw.logging.get_logger` for consistent structured logging (#review-phase3)
+
+### Changed
+- Extracted shared `torch_utils.py` — `configure_cuda_env()` and `configure_torch_inference()` deduplicated from STT/TTS worker mains into a single shared module (#review-phase2)
+- Extracted shared `proto_utils.py` — `build_health_response()` deduplicated from STT/TTS converters (#review-phase2)
+- Introduced `WorkerType` enum in `workers/manager.py` — replaced primitive string obsession (`"stt"`, `"tts"`) with a proper enum for type safety (#review-phase2)
+- Extracted TTS service facade (`tts_service.py`) — `resolve_tts_resources()` and `find_default_tts_model()` consolidated from `speech.py` and `realtime.py` (#review-phase2)
+- Extracted gRPC channel management (`grpc_channels.py`) — `get_or_create_tts_channel()` and `close_tts_channels()` moved from `speech.py` route module (#review-phase2)
+- Consolidated gRPC constants in `server/constants.py` — `TTS_GRPC_CHANNEL_OPTIONS` and `TTS_GRPC_TIMEOUT` centralized, eliminating duplicate magic numbers (#review-phase2)
+- Extracted `_drain_stream()` in `StreamingSession` — 3 duplicate stream cleanup sites consolidated into a single method (#review-phase2)
+- Extracted `_send_to_worker()` in `Scheduler` — unified proto build + gRPC call + error translation, removing ~25 lines of duplication (#review-phase2)
+- Decomposed `StreamingSession` god class (1083 → 847 lines) — extracted `StreamMetricsRecorder` (84 lines, owns TTFB/final_delay/force-commit timing) and `StreamRecoveryHandler` (139 lines, owns crash recovery + WAL resend) (#review-phase3)
+- Added `update_itn()` public method to `StreamingSession` — `realtime.py` no longer mutates private `_enable_itn` directly (#review-phase3)
+- Health check `_check_worker_health()` refactored from if/else to dispatch table — adding a new worker type requires one function + one dict entry (#review-phase3)
+- Stale gRPC channels now evicted on error in `Scheduler._dispatch_request()` — next request creates a fresh channel instead of broken one (#review-phase3)
+- Consolidated duplicate VAD methods `_compute_timestamp_ms` / `_samples_to_ms` into single `_samples_to_ms` in `vad/detector.py` (#review-phase3)
+- Migrated from src layout to flat layout (`src/macaw/` → `macaw/`) — simpler project structure, zero import changes (#flat-layout)
+
+### Removed
+- Dead code: `CreateVoiceRequest` model, `ErrorResponse`/`ErrorDetail` models, `_sensitivity` field in VAD detector, `_pending_final_event` in StreamingSession, YAGNI preprocessing config fields (#review-phase3)
+
 ### Added
+- Unit tests for `error_handlers.py` — 14 tests covering all 10 exception handlers with status codes, response format, and Retry-After headers (#review-phase3)
+- Endpoint `GET /v1/voices` listing available TTS voices from loaded workers via gRPC ListVoices RPC, aggregated across all TTS models (#voices)
+- Endpoint `POST /v1/voices` for creating saved voices (cloned with ref_audio upload or designed with instruction text) via multipart/form-data (#voices)
+- Endpoint `GET /v1/voices/{id}` for retrieving saved voice details (#voices)
+- Endpoint `DELETE /v1/voices/{id}` for removing saved voices (#voices)
+- `VoiceStore` ABC with `FileSystemVoiceStore` implementation for persisting cloned and designed voices on disk (#voices)
+- `VoiceNotFoundError` exception mapped to HTTP 404 in error handlers (#voices)
+- Saved voice resolution in `POST /v1/audio/speech` — voices prefixed with `voice_` are looked up from VoiceStore and their params (ref_audio, ref_text, instruction) injected into the request (#voices)
+- `ListVoices` RPC in TTS worker proto with `VoiceInfoProto` message type (#voices)
+- ADR-001: Voice Persistence Architecture — filesystem-based VoiceStore at API layer (#adrs)
+- ADR-002: Audio Watermarking for Voice Cloning — proposed design, deferred implementation (#adrs)
+- `demo_voice_cloning.py` — Gradio web demo for voice cloning interativo com Qwen3-TTS-0.6B-Base: upload/gravacao de audio de referencia, selecao de idioma, sintese com voz clonada (#demo)
+- Endpoint HTTP `GET /v1/realtime` retorna 426 Upgrade Required com documentação completa do protocolo WebSocket no Swagger UI — conexão, comandos, eventos, full-duplex e exemplos JSON (#docs)
+- CLI `macaw catalog` para listar modelos disponiveis para download no catalogo, com tabela formatada (NAME, TYPE, ENGINE, DESCRIPTION) (#catalog)
+- `macaw pull` instala automaticamente as dependencias da engine do modelo apos download — engines com extras opcionais (faster-whisper, kokoro, qwen3-tts) sao instaladas via pip sem intervencao manual (#pull)
 - Qwen3-TTS backend com suporte a CustomVoice (9 vozes preset), Base (voice cloning), e VoiceDesign (instrucao em linguagem natural) (#qwen3-tts)
 - 5 modelos Qwen3-TTS no catalogo: 0.6B/1.7B CustomVoice, 0.6B/1.7B Base, 1.7B VoiceDesign (#qwen3-tts)
 - Campos opcionais `language`, `ref_audio`, `ref_text`, `instruction` na API REST e WebSocket para suportar TTS LLM-based (#qwen3-tts)
@@ -17,10 +63,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DNS setup guide (`docs/DNS_SETUP.md`) for migrating docs to `docs.usemacaw.io` (#docs)
 
 ### Fixed
+- Qwen3-TTS voice cloning falhava com `TypeError: Unsupported audio input type: <class 'bytes'>` — `ref_audio` bytes (WAV) agora são decodificados para `(np.ndarray, sample_rate)` antes de passar ao modelo, compatível com a API `qwen_tts` (#voice-cloning)
+- `src/uvicorn.py` (test shim) sombreava o pacote real `uvicorn` quando `PYTHONPATH=src`, causando `ModuleNotFoundError: No module named 'uvicorn.config'` — movido para `tests/uvicorn_shim.py` (#dev)
+- WebSocket `/v1/realtime` não processava áudio — `StreamingGRPCClient` nunca era instanciado durante `macaw serve`, fazendo com que todas as sessões streaming descartassem frames silenciosamente. Agora o cliente gRPC streaming é criado e conectado ao worker STT no startup (#streaming)
+- Workers gRPC (STT e TTS) rejeitavam keepalive pings do runtime com `GOAWAY ENHANCE_YOUR_CALM` — servidores gRPC agora aceitam pings a cada 5s, compatível com o intervalo de 10s do cliente streaming (#streaming)
+- Silero VAD exibia mensagem de erro enganosa "requires torch" quando `torchaudio` estava ausente — agora diferencia a falta de `torch` da falta de dependências do Silero e mostra a mensagem correta (#vad)
+- CLI `macaw transcribe --format verbose_json` exibia apenas o texto puro em vez do JSON completo com segmentos, timestamps e idioma — agora retorna o objeto JSON completo para `verbose_json` (#cli)
+- Modelos Faster-Whisper no catálogo usavam `compute_type: "float16"` hardcoded, causando crash do worker STT em máquinas sem GPU — alterado para `compute_type: "auto"` que seleciona o tipo ideal automaticamente (float16 em GPU, int8 em CPU) (#catalog)
+- `macaw serve` não tenta mais spawnar workers para engines não instaladas — modelos com dependência opcional ausente são pulados com warning claro indicando o comando de instalação (#serve)
 - Protobuf stubs (`*_pb2.py`) ausentes no wheel PyPI causavam `ModuleNotFoundError` ao rodar `macaw serve` — adicionado hatch build hook que gera os stubs automaticamente durante o build (#build)
 - Kokoro TTS `languages` no catálogo listava apenas 3 idiomas (en, pt, ja) mas o backend suporta 8 — atualizado para en, es, fr, hi, it, ja, pt, zh (#catalog)
+- `GET /health` reportava `status: "ok"` antes dos workers gRPC estarem prontos, causando race condition onde requests TTS falhavam com 503 logo após o servidor iniciar — agora retorna `status: "loading"` enquanto workers estão iniciando e `status: "degraded"` se algum crashou (#health)
+
+### Removed
+- WeNet STT backend removido — engine, testes, manifesto, dependencia opcional e documentacao (#wenet-removal)
 
 ### Changed
+- Extra `[stream]` agora inclui `torch` e `torchaudio` como dependências — `pip install macaw-openvoice[stream]` instala tudo necessário para streaming via WebSocket, incluindo Silero VAD (#deps)
+- `POST /v1/audio/speech` agora usa `StreamingResponse` — audio chunks são enviados ao cliente conforme chegam do gRPC worker, reduzindo TTFB significativamente (#perf)
+- TTS gRPC channel é reutilizado entre chamadas `tts.speak` na mesma conexão WebSocket — elimina overhead de TCP+HTTP/2 handshake (~5-20ms por request) (#perf)
+- Float32→int16 conversion no audio pipeline usa operações NumPy in-place (`np.multiply(out=)`, `np.clip(out=)`) — reduz alocações de 4 para 2 por frame no hot path (#perf)
+- gRPC streaming channel inclui `grpc.http2.max_pings_without_data=0` — previne morte silenciosa de conexão durante períodos de mute-on-speak (#perf)
+- `LatencyTracker.cleanup()` é chamado periodicamente pelo Scheduler dispatch loop (a cada 30s) — previne memory leak em requests que nunca completam (#perf)
+- KokoroBackend `synthesize()` agora usa true streaming via `asyncio.Queue` — cada segmento do KPipeline é convertido para PCM e yielded imediatamente, reduzindo TTFB de tempo-total-de-síntese para tempo-do-primeiro-segmento (#perf)
+- Int16→float32 conversion no `StreamingPreprocessor` usa divisão in-place (`/=`) — elimina 1 array temporário por frame no hot path STT (#perf)
+- `EnergyPreFilter.is_silence()` usa `np.dot()` para RMS e operações in-place para spectral flatness — elimina 3 arrays temporários por frame no pre-filter VAD (#perf)
+- FasterWhisperBackend `beam_size` agora lido de `engine_config` em vez de hardcoded=5 — permite tuning via `macaw.yaml` manifest (#perf)
+- Workers STT e TTS executam dummy inference (warmup) após `load()` — GPU caches e JIT são primados antes do primeiro request real, reduzindo latência da primeira inferência (#perf)
+- `docker-compose.yml` agora inclui `deploy.resources` com limites de memória (4G) e CPU (4 cores) — previne OOM killer em ambientes compartilhados (#infra)
+- `fastapi`, `uvicorn`, `python-multipart` e `huggingface_hub` movidos de extras opcionais para dependências base — `pip install macaw-openvoice` agora inclui tudo necessário para `macaw serve` funcionar (#deps)
 - TTSBackend.synthesize() agora aceita `options: dict` opcional para params engine-specific (#qwen3-tts)
 - Docusaurus config prepared for custom domain migration to `docs.usemacaw.io` (#docs)
 - Imagem Docker CPU agora é apenas `linux/amd64` — `pynini` (dependência de ITN) não publica wheels arm64 e requer OpenFst compilado from source (#release-ci)

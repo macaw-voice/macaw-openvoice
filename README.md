@@ -12,7 +12,7 @@
   <a href="https://github.com/useMacaw/macaw-openvoice/releases"><img src="https://img.shields.io/badge/version-1.0.0-blue?style=flat-square" alt="Version 1.0.0"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-blue?style=flat-square" alt="License"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square" alt="Python 3.11+"></a>
-  <a href="https://github.com/useMacaw/macaw-openvoice/actions"><img src="https://img.shields.io/badge/tests-1686_passed-brightgreen?style=flat-square" alt="Tests"></a>
+  <a href="https://github.com/useMacaw/macaw-openvoice/actions"><img src="https://img.shields.io/badge/tests-1707_passed-brightgreen?style=flat-square" alt="Tests"></a>
   <a href="https://pypi.org/project/macaw-openvoice/"><img src="https://img.shields.io/badge/pypi-macaw--openvoice-orange?style=flat-square" alt="PyPI"></a>
 </p>
 
@@ -174,6 +174,21 @@ curl -X POST http://localhost:8000/v1/audio/speech \
   --output speech.wav
 ```
 
+### Voice Cloning
+
+```bash
+# Pull the voice cloning model
+macaw pull qwen3-tts-0.6b-base
+
+# Clone a voice from ~3 seconds of reference audio
+REF_AUDIO=$(base64 -w0 reference.wav)
+
+curl -s http://localhost:8000/v1/audio/speech \
+  -H "Content-Type: application/json" \
+  -d "{\"model\": \"qwen3-tts-0.6b-base\", \"input\": \"Text with cloned voice\", \"language\": \"English\", \"ref_audio\": \"$REF_AUDIO\", \"ref_text\": \"Transcript of reference\"}" \
+  --output cloned.wav
+```
+
 ## Architecture
 
 ```
@@ -187,6 +202,8 @@ curl -X POST http://localhost:8000/v1/audio/speech \
   |  POST /v1/audio/transcriptions    (STT batch)      |
   |  POST /v1/audio/translations      (STT translate)  |
   |  POST /v1/audio/speech            (TTS)            |
+  |  GET  /v1/voices                  (list voices)    |
+  |  POST /v1/voices                  (save voice)     |
   |  WS   /v1/realtime                (STT+TTS)        |
   +----------------------------------------------------+
   |              Scheduler                              |
@@ -203,7 +220,7 @@ curl -X POST http://localhost:8000/v1/audio/speech \
     |   gRPC)         |  |   gRPC)      |
     |                 |  |              |
     | Faster-Whisper  |  | Kokoro       |
-    | WeNet           |  |              |
+    |                 |  | Qwen3-TTS    |
     +-----------------+  +--------------+
              |
   +----------+-------------------------------------+
@@ -220,19 +237,42 @@ curl -X POST http://localhost:8000/v1/audio/speech \
   +------------------------------------------------+
 ```
 
-## Demo
-<p align="center">
-  <img src="docs/static/img/screen.png" alt="Macaw OpenVoice Demo" width="720" />
-</p>
-
-
 ## Supported Models
 
-| Engine | Type | Architecture | Partials | Hot Words | Status |
-|--------|------|-------------|----------|-----------|--------|
-| [Faster-Whisper](https://github.com/SYSTRAN/faster-whisper) | STT | encoder-decoder | LocalAgreement | via initial_prompt | Supported |
-| [WeNet](https://github.com/wenet-e2e/wenet) | STT | CTC | native | native keyword boosting | Supported |
-| [Kokoro](https://github.com/hexgrad/kokoro) | TTS | neural | — | — | Supported |
+**11 models** available via `macaw pull`, across 3 engines + built-in VAD.
+
+### Speech-to-Text
+
+| Model | Engine | Size | Languages | Hardware | Install |
+|-------|--------|------|-----------|----------|---------|
+| faster-whisper-large-v3 | Faster-Whisper | 3 GB | 100+ | GPU recommended | `macaw pull faster-whisper-large-v3` |
+| faster-whisper-medium | Faster-Whisper | 1.5 GB | 100+ | GPU recommended | `macaw pull faster-whisper-medium` |
+| faster-whisper-small | Faster-Whisper | 512 MB | 100+ | CPU / GPU | `macaw pull faster-whisper-small` |
+| faster-whisper-tiny | Faster-Whisper | 256 MB | 100+ | CPU | `macaw pull faster-whisper-tiny` |
+| distil-whisper-large-v3 | Faster-Whisper | 1.5 GB | English | GPU recommended | `macaw pull distil-whisper-large-v3` |
+
+All STT models support: streaming partials (LocalAgreement), word timestamps, language detection, translation (to English), and batch inference.
+
+### Text-to-Speech
+
+| Model | Engine | Size | Languages | Capability | Install |
+|-------|--------|------|-----------|------------|---------|
+| kokoro-v1 | Kokoro | 82M | 8 | Preset voices | `macaw pull kokoro-v1` |
+| qwen3-tts-0.6b-custom | Qwen3-TTS | 0.6B | 10 | 9 preset speakers | `macaw pull qwen3-tts-0.6b-custom` |
+| qwen3-tts-1.7b-custom | Qwen3-TTS | 1.7B | 10 | 9 preset speakers | `macaw pull qwen3-tts-1.7b-custom` |
+| qwen3-tts-0.6b-base | Qwen3-TTS | 0.6B | 10 | **Voice cloning** (~3s ref) | `macaw pull qwen3-tts-0.6b-base` |
+| qwen3-tts-1.7b-base | Qwen3-TTS | 1.7B | 10 | **Voice cloning** (~3s ref) | `macaw pull qwen3-tts-1.7b-base` |
+| qwen3-tts-1.7b-design | Qwen3-TTS | 1.7B | 10 | **Voice design** (natural language) | `macaw pull qwen3-tts-1.7b-design` |
+
+### Voice Activity Detection
+
+| Model | Type | License |
+|-------|------|---------|
+| Silero VAD | Energy pre-filter + Neural VAD | MIT |
+
+VAD runs as a built-in library in the runtime (not a worker subprocess).
+
+### Adding Your Own Engine
 
 Adding a new engine requires ~400-700 lines of code and zero changes to the runtime core. See the [Adding an Engine](https://usemacaw.github.io/macaw-openvoice/docs/guides/adding-engine) guide.
 
@@ -317,7 +357,7 @@ uv sync --all-extras
 # Development workflow
 make check       # format + lint + typecheck
 make test-unit   # unit tests (preferred during development)
-make test        # all tests (1686 passing)
+make test        # all tests (1707 passing)
 make ci          # full pipeline: format + lint + typecheck + test
 ```
 

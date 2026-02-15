@@ -26,6 +26,7 @@ from macaw._types import (
 from macaw.proto.stt_worker_pb2 import TranscribeFileRequest
 from macaw.workers.manager import (
     WorkerManager,
+    WorkerType,
     _build_worker_cmd,
 )
 from macaw.workers.stt.interface import STTBackend
@@ -186,74 +187,52 @@ class TestFix2BuildWorkerCmd:
         assert "--model-path" in cmd
         assert "/models/test" in cmd
 
-    def test_includes_compute_type(self) -> None:
+    def test_includes_engine_config_json(self) -> None:
+        import json
+
+        config = {"compute_type": "int8", "device": "cuda"}
         cmd = _build_worker_cmd(
             port=50051,
             engine="faster-whisper",
             model_path="/models/test",
-            engine_config={"compute_type": "int8"},
+            engine_config=config,
         )
-        idx = cmd.index("--compute-type")
-        assert cmd[idx + 1] == "int8"
+        idx = cmd.index("--engine-config")
+        parsed = json.loads(cmd[idx + 1])
+        assert parsed["compute_type"] == "int8"
+        assert parsed["device"] == "cuda"
 
-    def test_includes_device(self) -> None:
+    def test_all_config_options_in_json(self) -> None:
+        import json
+
+        config = {
+            "compute_type": "float16",
+            "device": "cpu",
+            "model_size": "large-v3",
+            "beam_size": 5,
+        }
         cmd = _build_worker_cmd(
             port=50051,
             engine="faster-whisper",
             model_path="/models/test",
-            engine_config={"device": "cuda"},
+            engine_config=config,
         )
-        idx = cmd.index("--device")
-        assert cmd[idx + 1] == "cuda"
+        idx = cmd.index("--engine-config")
+        parsed = json.loads(cmd[idx + 1])
+        assert parsed == config
 
-    def test_includes_model_size(self) -> None:
-        cmd = _build_worker_cmd(
-            port=50051,
-            engine="faster-whisper",
-            model_path="/models/test",
-            engine_config={"model_size": "tiny"},
-        )
-        idx = cmd.index("--model-size")
-        assert cmd[idx + 1] == "tiny"
+    def test_empty_config_produces_empty_json(self) -> None:
+        import json
 
-    def test_includes_beam_size(self) -> None:
-        cmd = _build_worker_cmd(
-            port=50051,
-            engine="faster-whisper",
-            model_path="/models/test",
-            engine_config={"beam_size": 3},
-        )
-        idx = cmd.index("--beam-size")
-        assert cmd[idx + 1] == "3"
-
-    def test_all_config_options(self) -> None:
-        cmd = _build_worker_cmd(
-            port=50051,
-            engine="faster-whisper",
-            model_path="/models/test",
-            engine_config={
-                "compute_type": "float16",
-                "device": "cpu",
-                "model_size": "large-v3",
-                "beam_size": 5,
-            },
-        )
-        assert "--compute-type" in cmd
-        assert "--device" in cmd
-        assert "--model-size" in cmd
-        assert "--beam-size" in cmd
-
-    def test_empty_config_no_extra_flags(self) -> None:
         cmd = _build_worker_cmd(
             port=50051,
             engine="faster-whisper",
             model_path="/models/test",
             engine_config={},
         )
-        assert "--compute-type" not in cmd
-        assert "--device" not in cmd
-        assert "--model-size" not in cmd
-        assert "--beam-size" not in cmd
+        idx = cmd.index("--engine-config")
+        parsed = json.loads(cmd[idx + 1])
+        assert parsed == {}
 
 
 # ============================================================
@@ -440,7 +419,7 @@ class TestFix5TasksAwaitedAfterCancel:
                 "faster-whisper",
                 "/models/test",
                 {"device": "cpu"},
-                worker_type="stt",
+                worker_type=WorkerType.STT,
             )
 
             await manager.stop_all()

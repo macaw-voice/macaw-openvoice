@@ -173,6 +173,7 @@ class TestTTSMetricsInstrumentation:
                     model_tts="kokoro-v1",
                     send_event=send_event,
                     cancel_event=cancel,
+                    tts_channel_ref=[None],
                 )
 
         mock_ttfb.observe.assert_called_once()
@@ -240,6 +241,7 @@ class TestTTSMetricsInstrumentation:
                     model_tts="kokoro-v1",
                     send_event=send_event,
                     cancel_event=cancel,
+                    tts_channel_ref=[None],
                 )
 
         mock_dur.observe.assert_called_once()
@@ -303,6 +305,7 @@ class TestTTSMetricsInstrumentation:
                     model_tts="kokoro-v1",
                     send_event=send_event,
                     cancel_event=cancel,
+                    tts_channel_ref=[None],
                 )
 
         mock_counter.labels.assert_called_with(status="ok")
@@ -343,6 +346,7 @@ class TestTTSMetricsInstrumentation:
                 model_tts="kokoro-v1",
                 send_event=send_event,
                 cancel_event=cancel,
+                tts_channel_ref=[None],
             )
 
         mock_counter.labels.assert_called_with(status="error")
@@ -407,6 +411,7 @@ class TestTTSMetricsInstrumentation:
                     model_tts="kokoro-v1",
                     send_event=send_event,
                     cancel_event=cancel,
+                    tts_channel_ref=[None],
                 )
 
         mock_gauge.inc.assert_called_once()
@@ -472,6 +477,7 @@ class TestTTSMetricsInstrumentation:
                     model_tts="kokoro-v1",
                     send_event=send_event,
                     cancel_event=cancel,
+                    tts_channel_ref=[None],
                 )
 
         mock_counter.labels.assert_called_with(status="cancelled")

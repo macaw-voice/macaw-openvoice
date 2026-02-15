@@ -34,7 +34,7 @@ def _make_mock_qwen3_model(
     mock_model.generate_custom_voice.return_value = ([audio], sample_rate)
     mock_model.generate_voice_clone.return_value = ([audio], sample_rate)
     mock_model.generate_voice_design.return_value = ([audio], sample_rate)
-    mock_model.get_supported_speakers.return_value = ["Chelsie", "Aiden", "Vivian"]
+    mock_model.get_supported_speakers.return_value = ["vivian", "Aiden", "Vivian"]
     mock_model.get_supported_languages.return_value = ["English", "Chinese"]
 
     return mock_model
@@ -211,7 +211,7 @@ class TestSynthesize:
         backend._model = mock_model
         backend._model_path = "/models/qwen3-tts"
         backend._variant = variant
-        backend._default_voice = "Chelsie"
+        backend._default_voice = "vivian"
         backend._default_language = "English"
         backend._sample_rate = 24000
         return backend
@@ -249,21 +249,38 @@ class TestSynthesize:
         )
 
     async def test_base_voice_clone(self) -> None:
+        import io
+        import wave
+
         backend = self._make_loaded_backend(variant="base")
-        ref_audio_bytes = b"fake_audio_data"
+        # Create valid WAV bytes (qwen_tts expects WAV, not raw bytes)
+        sr = 24000
+        samples = np.zeros(sr, dtype=np.int16)  # 1 second of silence
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(sr)
+            wf.writeframes(samples.tobytes())
+        ref_audio_wav = buf.getvalue()
+
         options = {
             "language": "English",
-            "ref_audio": ref_audio_bytes,
+            "ref_audio": ref_audio_wav,
             "ref_text": "This is my voice",
         }
         async for _ in backend.synthesize("Hello", options=options):
             pass
-        backend._model.generate_voice_clone.assert_called_once_with(  # type: ignore[union-attr]
-            text="Hello",
-            language="English",
-            ref_audio=ref_audio_bytes,
-            ref_text="This is my voice",
-        )
+        backend._model.generate_voice_clone.assert_called_once()  # type: ignore[union-attr]
+        call_kwargs = backend._model.generate_voice_clone.call_args[1]  # type: ignore[union-attr]
+        assert call_kwargs["text"] == "Hello"
+        assert call_kwargs["language"] == "English"
+        assert call_kwargs["ref_text"] == "This is my voice"
+        # ref_audio should be decoded to (np.ndarray, sample_rate) tuple
+        ref_decoded = call_kwargs["ref_audio"]
+        assert isinstance(ref_decoded, tuple)
+        assert isinstance(ref_decoded[0], np.ndarray)
+        assert ref_decoded[1] == sr
 
     async def test_base_without_ref_audio_raises(self) -> None:
         backend = self._make_loaded_backend(variant="base")
@@ -325,7 +342,7 @@ class TestSynthesize:
             pass
         backend._model.generate_custom_voice.assert_called_once()  # type: ignore[union-attr]
         call_kwargs = backend._model.generate_custom_voice.call_args  # type: ignore[union-attr]
-        assert call_kwargs[1]["speaker"] == "Chelsie"
+        assert call_kwargs[1]["speaker"] == "vivian"
 
     async def test_inference_error_raises_synthesis_error(self) -> None:
         backend = self._make_loaded_backend()
@@ -359,12 +376,12 @@ class TestVoices:
         backend = Qwen3TTSBackend()
         backend._variant = "custom_voice"
         mock_model = MagicMock()
-        mock_model.get_supported_speakers.return_value = ["Chelsie", "Aiden"]
+        mock_model.get_supported_speakers.return_value = ["vivian", "Aiden"]
         backend._model = mock_model
         result = await backend.voices()
         assert len(result) == 2
         assert all(isinstance(v, VoiceInfo) for v in result)
-        assert result[0].voice_id == "Chelsie"
+        assert result[0].voice_id == "vivian"
         assert result[1].voice_id == "Aiden"
 
     async def test_custom_voice_fallback_to_static_list(self) -> None:
@@ -374,8 +391,8 @@ class TestVoices:
         result = await backend.voices()
         assert len(result) == 9
         voice_ids = [v.voice_id for v in result]
-        assert "Chelsie" in voice_ids
-        assert "Vivian" in voice_ids
+        assert "vivian" in voice_ids
+        assert "aiden" in voice_ids
 
     async def test_base_returns_empty(self) -> None:
         backend = Qwen3TTSBackend()

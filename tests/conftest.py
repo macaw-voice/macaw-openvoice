@@ -6,10 +6,10 @@ import struct
 import sys
 from pathlib import Path
 
-# Ensure `src/` is on sys.path so tests can import the `macaw` package
+# Ensure repo root is on sys.path so tests can import the `macaw` package
 # when running pytest from the repository root without an editable install.
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT))
 
 import pytest  # noqa: E402
 
@@ -64,14 +64,6 @@ def valid_tts_manifest_path() -> Path:
 def minimal_manifest_path() -> Path:
     """Caminho para manifesto com campos minimos."""
     path = MANIFESTS_DIR / "minimal.yaml"
-    assert path.exists(), f"Fixture de manifesto nao encontrada: {path}"
-    return path
-
-
-@pytest.fixture
-def valid_stt_wenet_manifest_path() -> Path:
-    """Caminho para manifesto STT WeNet CTC valido."""
-    path = MANIFESTS_DIR / "valid_stt_wenet.yaml"
     assert path.exists(), f"Fixture de manifesto nao encontrada: {path}"
     return path
 

@@ -56,6 +56,23 @@ def _make_tts_result(
     )
 
 
+def _make_open_tts_stream_mock(
+    audio_data: bytes = b"\x00\x01" * 100,
+) -> AsyncMock:
+    """Create an AsyncMock for _open_tts_stream that returns
+    an empty async iterator and the audio data as first chunk."""
+
+    # Empty async iterator (no more chunks after first_audio_chunk)
+    async def _empty_iter():
+        return
+        yield  # make it a generator
+
+    mock = AsyncMock(
+        return_value=(_empty_iter(), audio_data),
+    )
+    return mock
+
+
 # ─── SpeechRequest Model ───
 
 
@@ -240,14 +257,13 @@ class TestSpeechRoute:
     async def test_speech_returns_wav(self) -> None:
         registry = _make_mock_registry()
         manager = _make_mock_worker_manager()
-        tts_result = _make_tts_result()
+        audio_data = b"\x00\x01" * 100
 
         app = create_app(registry=registry, worker_manager=manager)
 
         with patch(
-            "macaw.server.routes.speech._synthesize_via_grpc",
-            new_callable=AsyncMock,
-            return_value=tts_result,
+            "macaw.server.routes.speech._open_tts_stream",
+            _make_open_tts_stream_mock(audio_data=audio_data),
         ):
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app),
@@ -260,21 +276,20 @@ class TestSpeechRoute:
 
         assert response.status_code == 200
         assert response.headers["content-type"] == "audio/wav"
-        # WAV starts with RIFF header
+        # WAV starts with RIFF header (44-byte header + audio data)
         assert response.content[:4] == b"RIFF"
+        assert response.content[44:] == audio_data
 
     async def test_speech_returns_pcm(self) -> None:
         registry = _make_mock_registry()
         manager = _make_mock_worker_manager()
         audio_data = b"\x00\x01" * 100
-        tts_result = _make_tts_result(audio_data=audio_data)
 
         app = create_app(registry=registry, worker_manager=manager)
 
         with patch(
-            "macaw.server.routes.speech._synthesize_via_grpc",
-            new_callable=AsyncMock,
-            return_value=tts_result,
+            "macaw.server.routes.speech._open_tts_stream",
+            _make_open_tts_stream_mock(audio_data=audio_data),
         ):
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app),
@@ -405,15 +420,11 @@ class TestSpeechRoute:
     async def test_speech_passes_voice_parameter(self) -> None:
         registry = _make_mock_registry()
         manager = _make_mock_worker_manager()
-        tts_result = _make_tts_result()
 
         app = create_app(registry=registry, worker_manager=manager)
 
-        with patch(
-            "macaw.server.routes.speech._synthesize_via_grpc",
-            new_callable=AsyncMock,
-            return_value=tts_result,
-        ) as mock_grpc:
+        mock = _make_open_tts_stream_mock()
+        with patch("macaw.server.routes.speech._open_tts_stream", mock):
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app),
                 base_url="http://test",
@@ -427,22 +438,21 @@ class TestSpeechRoute:
                     },
                 )
 
-        mock_grpc.assert_awaited_once()
-        call_kwargs = mock_grpc.call_args[1]
-        assert call_kwargs["voice"] == "alloy"
+        mock.assert_awaited_once()
+        call_kwargs = mock.call_args[1]
+        # Proto request is built upstream; voice is in the proto
+        assert call_kwargs["proto_request"].voice == "alloy"
+        # Channel is now pooled and passed from app.state.tts_channels
+        assert "channel" in call_kwargs
 
     async def test_speech_passes_speed_parameter(self) -> None:
         registry = _make_mock_registry()
         manager = _make_mock_worker_manager()
-        tts_result = _make_tts_result()
 
         app = create_app(registry=registry, worker_manager=manager)
 
-        with patch(
-            "macaw.server.routes.speech._synthesize_via_grpc",
-            new_callable=AsyncMock,
-            return_value=tts_result,
-        ) as mock_grpc:
+        mock = _make_open_tts_stream_mock()
+        with patch("macaw.server.routes.speech._open_tts_stream", mock):
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app),
                 base_url="http://test",
@@ -457,8 +467,8 @@ class TestSpeechRoute:
                 )
 
         # Verify the proto request was built with the right speed
-        mock_grpc.assert_awaited_once()
-        call_kwargs = mock_grpc.call_args[1]
+        mock.assert_awaited_once()
+        call_kwargs = mock.call_args[1]
         assert "proto_request" in call_kwargs
         assert call_kwargs["proto_request"].speed == 1.5
 
@@ -534,3 +544,240 @@ class TestGetWorkerManagerDependency:
 
         with pytest.raises(RuntimeError, match="WorkerManager"):
             get_worker_manager(mock_request)
+
+
+# ─── TTS gRPC Channel Pooling ───
+
+
+class TestTTSChannelPooling:
+    def test_get_or_create_creates_channel_on_first_call(self) -> None:
+        from macaw.server.grpc_channels import get_or_create_tts_channel
+
+        pool: dict[str, object] = {}
+        with patch("macaw.server.grpc_channels.grpc.aio.insecure_channel") as mock_create:
+            mock_channel = MagicMock()
+            mock_create.return_value = mock_channel
+
+            result = get_or_create_tts_channel(pool, "localhost:50052")
+
+        assert result is mock_channel
+        assert pool["localhost:50052"] is mock_channel
+        mock_create.assert_called_once()
+
+    def test_get_or_create_reuses_existing_channel(self) -> None:
+        from macaw.server.grpc_channels import get_or_create_tts_channel
+
+        existing_channel = MagicMock()
+        pool: dict[str, object] = {"localhost:50052": existing_channel}
+
+        with patch("macaw.server.grpc_channels.grpc.aio.insecure_channel") as mock_create:
+            result = get_or_create_tts_channel(pool, "localhost:50052")
+
+        assert result is existing_channel
+        mock_create.assert_not_called()
+
+    def test_get_or_create_different_addresses_get_different_channels(self) -> None:
+        from macaw.server.grpc_channels import get_or_create_tts_channel
+
+        pool: dict[str, object] = {}
+        with patch("macaw.server.grpc_channels.grpc.aio.insecure_channel") as mock_create:
+            ch1 = MagicMock()
+            ch2 = MagicMock()
+            mock_create.side_effect = [ch1, ch2]
+
+            result1 = get_or_create_tts_channel(pool, "localhost:50052")
+            result2 = get_or_create_tts_channel(pool, "localhost:50053")
+
+        assert result1 is ch1
+        assert result2 is ch2
+        assert len(pool) == 2
+
+    async def test_close_tts_channels_closes_all(self) -> None:
+        from macaw.server.grpc_channels import close_tts_channels
+
+        ch1 = AsyncMock()
+        ch2 = AsyncMock()
+        pool = {"localhost:50052": ch1, "localhost:50053": ch2}
+
+        await close_tts_channels(pool)
+
+        ch1.close.assert_awaited_once()
+        ch2.close.assert_awaited_once()
+        assert len(pool) == 0
+
+    async def test_close_tts_channels_handles_close_error(self) -> None:
+        from macaw.server.grpc_channels import close_tts_channels
+
+        ch1 = AsyncMock()
+        ch1.close.side_effect = RuntimeError("close failed")
+        ch2 = AsyncMock()
+        pool = {"localhost:50052": ch1, "localhost:50053": ch2}
+
+        await close_tts_channels(pool)
+
+        # Both channels attempted close, pool cleared despite error on ch1
+        ch1.close.assert_awaited_once()
+        ch2.close.assert_awaited_once()
+        assert len(pool) == 0
+
+    async def test_channel_reused_across_requests(self) -> None:
+        """Verify the same pooled channel is passed to _open_tts_stream for
+        consecutive requests to the same worker address."""
+        registry = _make_mock_registry()
+        manager = _make_mock_worker_manager()
+        app = create_app(registry=registry, worker_manager=manager)
+
+        mock = _make_open_tts_stream_mock()
+        with patch("macaw.server.routes.speech._open_tts_stream", mock):
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                await client.post(
+                    "/v1/audio/speech",
+                    json={"model": "kokoro-v1", "input": "First"},
+                )
+                # Reset mock to capture second call independently
+                first_channel = mock.call_args[1]["channel"]
+
+                mock.reset_mock()
+                mock.return_value = _make_open_tts_stream_mock().return_value
+
+                await client.post(
+                    "/v1/audio/speech",
+                    json={"model": "kokoro-v1", "input": "Second"},
+                )
+                second_channel = mock.call_args[1]["channel"]
+
+        # Same channel object reused for both requests
+        assert first_channel is second_channel
+
+    async def test_app_state_has_tts_channels(self) -> None:
+        app = create_app()
+        assert hasattr(app.state, "tts_channels")
+        assert app.state.tts_channels == {}
+
+
+# ─── Saved Voice Resolution ───
+
+
+class TestSpeechWithSavedVoice:
+    """Speech route resolves voice_ prefix from VoiceStore."""
+
+    async def test_speech_with_saved_voice_resolves_params(self, tmp_path: object) -> None:
+        from macaw.server.voice_store import FileSystemVoiceStore
+
+        voice_store = FileSystemVoiceStore(str(tmp_path))
+        await voice_store.save(
+            voice_id="abc123",
+            name="My Clone",
+            voice_type="cloned",
+            ref_audio=b"\x00\x01" * 50,
+            ref_text="Hello reference",
+            instruction="Speak clearly",
+            language="en",
+        )
+
+        registry = _make_mock_registry()
+        manager = _make_mock_worker_manager()
+
+        app = create_app(
+            registry=registry,
+            worker_manager=manager,
+            voice_store=voice_store,
+        )
+
+        mock = _make_open_tts_stream_mock()
+        with patch("macaw.server.routes.speech._open_tts_stream", mock):
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                await client.post(
+                    "/v1/audio/speech",
+                    json={
+                        "model": "kokoro-v1",
+                        "input": "Generate speech",
+                        "voice": "voice_abc123",
+                    },
+                )
+
+        mock.assert_awaited_once()
+        proto = mock.call_args[1]["proto_request"]
+        # Voice is resolved to "default" (engine-agnostic)
+        assert proto.voice == "default"
+        # Saved voice params are injected into the proto
+        assert proto.ref_text == "Hello reference"
+        assert proto.instruction == "Speak clearly"
+        assert proto.language == "en"
+        assert len(proto.ref_audio) > 0
+
+    async def test_speech_with_nonexistent_saved_voice_returns_404(self, tmp_path: object) -> None:
+        from macaw.server.voice_store import FileSystemVoiceStore
+
+        voice_store = FileSystemVoiceStore(str(tmp_path))
+        registry = _make_mock_registry()
+        manager = _make_mock_worker_manager()
+
+        app = create_app(
+            registry=registry,
+            worker_manager=manager,
+            voice_store=voice_store,
+        )
+
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://test",
+        ) as client:
+            resp = await client.post(
+                "/v1/audio/speech",
+                json={
+                    "model": "kokoro-v1",
+                    "input": "Hello",
+                    "voice": "voice_nonexistent",
+                },
+            )
+
+        assert resp.status_code == 404
+
+    async def test_speech_saved_voice_plus_inline_ref_audio_returns_400(
+        self, tmp_path: object
+    ) -> None:
+        """Cannot provide both inline ref_audio and a saved cloned voice."""
+        import base64
+
+        from macaw.server.voice_store import FileSystemVoiceStore
+
+        voice_store = FileSystemVoiceStore(str(tmp_path))
+        await voice_store.save(
+            voice_id="conflict-id",
+            name="Clone",
+            voice_type="cloned",
+            ref_audio=b"\x00" * 100,
+        )
+
+        registry = _make_mock_registry()
+        manager = _make_mock_worker_manager()
+
+        app = create_app(
+            registry=registry,
+            worker_manager=manager,
+            voice_store=voice_store,
+        )
+
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://test",
+        ) as client:
+            resp = await client.post(
+                "/v1/audio/speech",
+                json={
+                    "model": "kokoro-v1",
+                    "input": "Hello",
+                    "voice": "voice_conflict-id",
+                    "ref_audio": base64.b64encode(b"\xff" * 50).decode(),
+                },
+            )
+
+        assert resp.status_code == 400
+        assert "inline ref_audio" in resp.json()["error"]["message"]
