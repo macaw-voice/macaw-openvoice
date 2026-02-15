@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Pre-commit hooks for local quality enforcement: ruff, bandit SAST, detect-secrets, file hygiene, branch protection (#quality-gates)
+- Test coverage measurement with pytest-cov — branch coverage enabled, `fail_under = 70` (#quality-gates)
+- Bandit SAST security scanning as Make target and CI step (#quality-gates)
+- New Makefile targets: `test-cov`, `security`, `audit` (#quality-gates)
+- Coverage reporting with HTML artifacts and XML upload in CI pipeline (#quality-gates)
+
 ### Fixed
 - mypy `NameError` risk in `cli/models.py` — renamed loop variable `e` to `entry` to avoid CPython except-bound variable deletion (#review-phase1)
 - mypy `call-overload` error in `workers/tts/qwen3.py` — added explicit type narrowing for `ref_audio` in `_decode_ref_audio()` (#review-phase1)
