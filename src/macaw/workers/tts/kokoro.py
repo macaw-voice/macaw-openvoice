@@ -207,8 +207,20 @@ class KokoroBackend(TTSBackend):
         return _scan_voices_dir(self._voices_dir)
 
     async def unload(self) -> None:
-        self._model = None
-        self._pipeline = None
+        if self._model is not None:
+            del self._model
+            self._model = None
+        if self._pipeline is not None:
+            del self._pipeline
+            self._pipeline = None
+        # Best-effort GPU memory cleanup
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except ImportError:
+            pass
         self._model_path = ""
         self._voices_dir = ""
         logger.info("model_unloaded")

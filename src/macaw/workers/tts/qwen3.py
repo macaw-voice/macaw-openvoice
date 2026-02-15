@@ -182,10 +182,11 @@ class Qwen3TTSBackend(TTSBackend):
                 try:
                     speakers = self._model.get_supported_speakers()
                     return [VoiceInfo(voice_id=s, name=s, language="multi") for s in speakers]
-                except Exception:
+                except Exception as exc:
                     logger.warning(
                         "get_supported_speakers_failed",
                         model_path=self._model_path,
+                        error=str(exc),
                     )
             return list(_CUSTOM_VOICE_SPEAKERS)
         return []
@@ -277,7 +278,11 @@ def _decode_ref_audio(ref_audio: object) -> tuple[np.ndarray, int]:
         msg = "ref_audio already in accepted format"
         raise TypeError(msg)
 
-    raw = bytes(ref_audio) if not isinstance(ref_audio, bytes) else ref_audio
+    if not isinstance(ref_audio, (bytes, bytearray, memoryview)):
+        msg = f"ref_audio must be bytes-like, got {type(ref_audio).__name__}"
+        raise TypeError(msg)
+
+    raw = bytes(ref_audio)
 
     buf = io.BytesIO(raw)
     with wave.open(buf, "rb") as wf:

@@ -107,7 +107,7 @@ async def serve(
     await backend.load(model_path, engine_config)
     logger.info("model_loaded", engine=engine)
 
-    warmup_steps = int(engine_config.get("warmup_steps", 3))  # type: ignore[arg-type]
+    warmup_steps = int(engine_config.get("warmup_steps", 3))  # type: ignore[call-overload]
     await _warmup_backend(backend, warmup_steps=warmup_steps)
 
     model_name = str(engine_config.get("model_name", "unknown"))

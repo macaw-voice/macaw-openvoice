@@ -142,8 +142,10 @@ def catalog() -> None:
     header = f"{'NAME':<{name_w}}  {'TYPE':<5}  {'ENGINE':<16}  {'DESCRIPTION'}"
     click.echo(header)
 
-    for e in entries:
-        click.echo(f"{e.name:<{name_w}}  {e.model_type:<5}  {e.engine:<16}  {e.description}")
+    for entry in entries:
+        click.echo(
+            f"{entry.name:<{name_w}}  {entry.model_type:<5}  {entry.engine:<16}  {entry.description}"
+        )
 
     click.echo()
     click.echo("Run 'macaw pull <name>' to download a model.")

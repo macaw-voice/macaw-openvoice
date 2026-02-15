@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- mypy `NameError` risk in `cli/models.py` — renamed loop variable `e` to `entry` to avoid CPython except-bound variable deletion (#review-phase1)
+- mypy `call-overload` error in `workers/tts/qwen3.py` — added explicit type narrowing for `ref_audio` in `_decode_ref_audio()` (#review-phase1)
+- Swallowed exception in `Qwen3TTSBackend.voices()` — `except Exception` now captures and logs the error string (#review-phase1)
+- Swallowed exception in `WorkerManager._health_probe()` — `except Exception: pass` replaced with `logger.debug` with `exc_info` (#review-phase1)
+- GPU memory leak in `KokoroBackend.unload()` — now calls `del` on model/pipeline and `torch.cuda.empty_cache()`, matching Qwen3 behavior (#review-phase1)
+- Missing VoiceStore null guard in `POST /v1/audio/speech` — requests with `voice_` prefix now raise `InvalidRequestError` when VoiceStore is not configured, instead of passing invalid voice ID to engine (#review-phase1)
+- Wrong `type: ignore` code in `workers/stt/main.py` and `workers/tts/main.py` — changed from `arg-type` to `call-overload` (#review-phase1)
+
 ### Added
 - Endpoint `GET /v1/voices` listing available TTS voices from loaded workers via gRPC ListVoices RPC, aggregated across all TTS models (#voices)
 - Endpoint `POST /v1/voices` for creating saved voices (cloned with ref_audio upload or designed with instruction text) via multipart/form-data (#voices)

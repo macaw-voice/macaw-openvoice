@@ -238,7 +238,7 @@ class WorkerManager:
             except asyncio.CancelledError:
                 return
             except Exception:
-                pass
+                logger.debug("health_probe_error", worker_id=worker_id, exc_info=True)
 
             delay = min(delay * 2, HEALTH_PROBE_MAX_DELAY)
 
